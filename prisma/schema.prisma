@@ -1189,6 +1189,7 @@ model Supplier {
 
   products       SupplierProduct[]
   purchaseOrders PurchaseOrder[]
+  invoices       PurchaseInvoice[]
   messages       SupplierMessage[]
   returns        SupplierReturn[]
   aiDrafts       AiOrderDraft[]
@@ -1528,6 +1529,7 @@ model PurchaseOrder {
 
   items    PurchaseOrderItem[]
   receipts PurchaseReceipt[]
+  invoices PurchaseInvoice[]
   messages SupplierMessage[]
   returns  SupplierReturn[]
   aiDrafts AiOrderDraft[]
@@ -1538,6 +1540,55 @@ model PurchaseOrder {
   @@index([tenantId, status])
   @@index([tenantId, supplierId])
   @@map("purchase_orders")
+}
+
+// Comprobante de compra del proveedor (factura, boleta, nota...): es lo que alimenta el Registro de Compras
+// (PLE 8.1). Se captura aparte de la orden de compra porque un pedido puede tener varios comprobantes.
+model PurchaseInvoice {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  tenantId           String         @default(dbgenerated("app_current_tenant()")) @db.Uuid
+  supplierId         String?        @db.Uuid
+  // Datos del proveedor congelados al registrar (el comprobante no cambia si luego se edita el proveedor).
+  supplierDocType    DocumentIdType @default(RUC)
+  supplierDocNumber  String?
+  supplierName       String?
+  // Tabla 10 de SUNAT: 01 factura, 03 boleta, 07 nota de crédito, 08 nota de débito, 02 recibo por honorarios...
+  docTypeCode        String
+  series             String
+  number             String
+  issueDate          DateTime       @db.Timestamptz(3)
+  dueDate            DateTime?      @db.Timestamptz(3)
+  // Periodo en que se anota (AAAAMM). Por defecto el mes de emisión; puede ser posterior (hasta 12 meses con derecho a crédito).
+  period             Int
+  currency           String         @default("PEN")
+  taxedBase          Decimal        @default(0) @db.Decimal(14, 2)
+  igv                Decimal        @default(0) @db.Decimal(14, 2)
+  // Adquisiciones no gravadas.
+  exemptTotal        Decimal        @default(0) @db.Decimal(14, 2)
+  total              Decimal        @db.Decimal(14, 2)
+  givesTaxCredit     Boolean        @default(true)
+  // Cancelado con un medio de pago (bancarización) en lugar de efectivo.
+  paidWithBankMethod Boolean        @default(false)
+  // Solo notas de crédito/débito: comprobante que modifican.
+  relatedDocTypeCode String?
+  relatedSeries      String?
+  relatedNumber      String?
+  relatedIssueDate   DateTime?      @db.Timestamptz(3)
+  purchaseOrderId    String?        @db.Uuid
+  notes              String?
+  createdById        String?        @db.Uuid
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
+  deletedAt          DateTime?      @db.Timestamptz(3)
+
+  supplier      Supplier?      @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder? @relation(fields: [tenantId, purchaseOrderId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  // Un mismo comprobante del proveedor no se registra dos veces (respeta el borrado lógico).
+  @@unique([tenantId, supplierDocNumber, docTypeCode, series, number], map: "purchase_invoices_doc_active")
+  @@index([tenantId, period])
+  @@map("purchase_invoices")
 }
 
 model PurchaseOrderItem {

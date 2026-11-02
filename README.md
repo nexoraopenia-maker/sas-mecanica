@@ -154,6 +154,15 @@ No hay una tabla `ServiceOrder` aparte: la **orden de trabajo (OT)** ya es la or
 - **SuperAdmin (`/admin/billing`):** cuentas con pago pendiente, últimos cobros, **registro de pagos por transferencia** (mismo camino que un webhook) y **extensión de gracia** con motivo auditado.
 - **Cuentas demo:** nunca se cobran.
 
+## Libros electrónicos PLE para SUNAT (`/app/reports/ple`)
+
+- **Qué genera:** el TXT del **Registro de Ventas e Ingresos (Formato 14.1, 35 campos)** y del **Registro de Compras (Formato 8.1, 42 campos)**, con la estructura de las R.S. 286-2009 y 108-2020 (Anexos 4 y 5): campos separados por `|`, periodo `AAAAMM00`, fechas `DD/MM/AAAA` (hora de Lima), importes con 2 decimales y sin separador de miles, codificación ANSI (Windows-1252) y nombre `LE`+RUC+AAAA+MM+`00`+libro+`00`+operaciones+contenido+moneda+generación`.TXT`.
+- **Ventas:** salen los comprobantes **aceptados** (estado `1`) e inutilizados (estado `2`, importes en cero) cuya emisión cae en el mes. Los **pendientes o rechazados quedan fuera** y la pantalla lo avisa. Las notas de crédito restan. El campo 34 (medio de pago) se marca cuando la venta se cobró íntegra sin efectivo, según los cobros de caja.
+- **Compras:** la plataforma no tenía datos estructurados del comprobante del proveedor, así que existe `PurchaseInvoice` (migración `20261103120000_purchase_invoices`) con su formulario en la misma pantalla. Se valida RUC (módulo 11), IGV contra la tasa del tenant y duplicados; anular es borrado lógico con motivo en la bitácora. Estado `1` (mismo mes), `6` (dentro de 12 meses), `7` (crédito vencido) o `0` (sin derecho a crédito).
+- **Seguridad:** exige `reports:ver` (registrar/anular pide `purchasing:crear`/`eliminar`), todo pasa por `withTenant` (RLS) y cada fila se valida contra la estructura oficial antes de salir (`lib/ple/spec.ts`); si no cumple, no se entrega el archivo.
+- **Convenciones que debes confirmar con tu contador** (no pude verificarlas contra una fuente primaria de SUNAT): el indicador «generado por PLE» del nombre va fijo en `1`; cada línea termina con `|`; la boleta sin cliente va con documento tipo `0` y número `00000000`; el CUO es el correlativo del mes y el asiento lleva prefijo `M`; un mes sin movimientos se exporta vacío con indicador de contenido `0`.
+- **Importante:** desde 2021 SUNAT reemplazó el PLE por el **SIRE** (RVIE/RCE) para los contribuyentes obligados. Si tu empresa lo está, estos libros son de apoyo; valida el formato con el validador del PLE antes de presentarlo. Una cuenta sin RUC válido (como las demo) no puede exportar.
+
 ## Migraciones
 
 - Nunca edites una migración ya aplicada.

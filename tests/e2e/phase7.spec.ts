@@ -65,6 +65,43 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
     void request;
   });
 
+  test("libros PLE: filtro por mes y año, aviso de RUC faltante y descarga protegida", async ({
+    page,
+    playwright,
+  }) => {
+    await enterDemo(page);
+    await page.getByRole("link", { name: "Reportes", exact: true }).click();
+    await page.getByTestId("ple-link").click();
+    await expect(
+      page.getByRole("heading", { name: /Libros electrónicos/, level: 1 }),
+    ).toBeVisible();
+    await page.getByLabel("Año").selectOption("2025");
+    await page.getByLabel("Mes").selectOption("3");
+    await page.getByTestId("ple-show").click();
+    await expect(page).toHaveURL(/anio=2025&mes=3/);
+    await expect(page.getByTestId("ple-sales-rows")).toContainText("0 filas");
+    await expect(page.getByTestId("ple-purchases-rows")).toContainText("0 filas");
+    // La cuenta demo no tiene RUC propio: se avisa y no se ofrece la descarga.
+    await expect(page.getByText("Falta el RUC de la empresa")).toBeVisible();
+    await expect(page.getByTestId("ple-download-ventas")).toHaveCount(0);
+    // Un periodo inválido se explica en pantalla.
+    await page.goto("/app/reports/ple?anio=2026&mes=13");
+    await expect(page.getByText("Mes inválido")).toBeVisible();
+
+    // La ruta de descarga exige sesión y rechaza un RUC no válido con un error legible.
+    const exportUrl = "/app/reports/ple/export?libro=14.1&anio=2025&mes=3";
+    const refused = await page.request.get(exportUrl);
+    expect(refused.status()).toBe(422);
+    expect((await refused.json()).error).toContain("RUC");
+    const anonymous = await playwright.request.newContext({
+      baseURL: page.url().split("/app")[0],
+      extraHTTPHeaders: { "x-forwarded-for": "10.8.8.8" },
+    });
+    const denied = await anonymous.get(exportUrl, { maxRedirects: 0 });
+    expect([307, 401]).toContain(denied.status());
+    await anonymous.dispose();
+  });
+
   test("el reporte de ventas explica un rango de fechas inválido en vez de romperse", async ({
     page,
   }) => {

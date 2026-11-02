@@ -22,6 +22,9 @@ export default async function ReportsPage() {
           </li>
         ))}
       </ul>
+      <Link href="/app/reports/ple" className="block" data-testid="ple-link">
+        <Card className="hover:bg-muted/40">{es.ple.link}</Card>
+      </Link>
     </>
   );
 }
