@@ -1,0 +1,26 @@
+# dependencias y build
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+
+# secretos: NUNCA al repositorio
+.env
+.env.*
+!.env.example
+
+# generados
+lib/db/generated
+
+# pruebas
+coverage
+playwright-report
+test-results
+
+# sistema
+.DS_Store
+*.log
+
+# almacenamiento local de desarrollo
+.local-storage

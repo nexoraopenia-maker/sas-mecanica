@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      TEST_ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      # Las pruebas de integración crean su propia base, aplican las migraciones
+      # reales y corren con el rol sas_app (sin BYPASSRLS).
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/sas
+      ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sas
+      DATABASE_URL: postgresql://sas_app:ci-app-password@localhost:5432/sas
+      APP_DB_PASSWORD: ci-app-password
+      LOG_LEVEL: warn
+      APP_URL: http://localhost:3100
+      # Claves de PRUEBA públicas de Cloudflare Turnstile (siempre aprueban).
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      SMTP_URL: smtp://localhost:1025
+      # Fotos y firmas del taller en disco local (sin Supabase Storage en CI).
+      STORAGE_DRIVER: local
+      # Sin pasarela de cobro en CI (la simulada está prohibida en producción y el E2E usa el build de producción).
+      BILLING_GATEWAY: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npm run db:app-role
+      - run: npm run db:seed
+      - name: Generar secretos efímeros
+        run: |
+          echo "ENCRYPTION_KEY=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))")" >> "$GITHUB_ENV"
+          echo "SESSION_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")" >> "$GITHUB_ENV"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
