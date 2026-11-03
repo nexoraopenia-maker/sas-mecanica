@@ -3,6 +3,8 @@ export const es = {
   app: {
     name: "Mecania",
     tagline: "ERP, POS y taller para autopartes y talleres mecánicos",
+    slogan: "Confiable todo tu negocio en un solo sistema",
+    logoAlt: "AIMA Automatizaciones",
   },
   auth: {
     loginTitle: "Ingresa a tu cuenta",

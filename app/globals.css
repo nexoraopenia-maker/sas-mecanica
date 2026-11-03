@@ -28,3 +28,33 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Pantallas de acceso: tema oscuro de la marca (base #050508, acentos cian #00F5FF y morado #BF5AF2). */
+.auth-theme {
+  --background: oklch(0.17 0.02 285 / 0.72);
+  --foreground: oklch(0.97 0 0);
+  --muted: oklch(0.24 0.03 285 / 0.7);
+  --muted-foreground: oklch(0.76 0.02 285);
+  --border: oklch(1 0 0 / 0.12);
+  --ring: #00f5ff;
+  --primary: #00c8d6;
+  --primary-foreground: #050508;
+  --destructive: oklch(0.72 0.19 22);
+  color: var(--foreground);
+  background-color: #050508;
+  background-image:
+    radial-gradient(60rem 40rem at 12% -10%, rgb(0 245 255 / 0.22), transparent 60%),
+    radial-gradient(55rem 40rem at 100% 105%, rgb(191 90 242 / 0.26), transparent 60%),
+    radial-gradient(30rem 20rem at 50% 45%, rgb(0 245 255 / 0.05), transparent 70%);
+}
+
+.auth-theme section {
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 0 1px rgb(0 245 255 / 0.08),
+    0 20px 60px -20px rgb(191 90 242 / 0.35);
+}
+
+.auth-theme .text-green-800 {
+  color: oklch(0.86 0.14 160);
+}
