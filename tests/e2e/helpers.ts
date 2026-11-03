@@ -22,3 +22,13 @@ export async function goNav(
     .first();
   await link.click();
 }
+
+/** Abre Configuración desde el menú y elige una pestaña (usuarios, roles, taller, facturacion, ia, plan). */
+export async function goConfig(
+  page: Page,
+  tab: "usuarios" | "roles" | "taller" | "facturacion" | "ia" | "plan",
+): Promise<void> {
+  await goNav(page, "Configuración", { exact: true });
+  await page.getByTestId(`settings-tab-${tab}`).click();
+  await expect(page.getByTestId(`settings-tab-${tab}`)).toHaveAttribute("aria-current", "page");
+}

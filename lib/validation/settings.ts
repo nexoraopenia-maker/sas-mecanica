@@ -54,3 +54,14 @@ export const testMessageSchema = z.object({
   to: z.string().trim().min(5).max(200),
 });
 export type TestMessageInput = z.input<typeof testMessageSchema>;
+
+/** Interruptores del dueño. Cada campo ausente se deja como está. */
+export const automationSwitchesSchema = z.object({
+  /** Agente de compras a proveedores (encendido/apagado). */
+  aiAgentEnabled: z.boolean().optional(),
+  /** Avisos automáticos a clientes por WhatsApp (OT lista, recordatorios, cobros). */
+  whatsappNoticesEnabled: z.boolean().optional(),
+  /** true = un humano aprueba cada pedido antes de enviarse; false = el agente envía solo dentro de sus topes. */
+  humanApproval: z.boolean().optional(),
+});
+export type AutomationSwitchesInput = z.input<typeof automationSwitchesSchema>;

@@ -23,3 +23,14 @@ describe("salesWhatsappUrl", () => {
     );
   });
 });
+
+describe("planChangeWhatsappUrl", () => {
+  it("pide el cambio de plan con el nombre del taller y el plan actual", async () => {
+    const { planChangeWhatsappUrl } = await import("@/lib/sales-whatsapp");
+    const url = planChangeWhatsappUrl("51987654321", "Taller Norte", "Pro") ?? "";
+    expect(decodeURIComponent(url)).toContain(
+      "cambiar el plan de mi taller (Taller Norte, plan actual: Pro)",
+    );
+    expect(planChangeWhatsappUrl(undefined, "X", "Pro")).toBeNull();
+  });
+});

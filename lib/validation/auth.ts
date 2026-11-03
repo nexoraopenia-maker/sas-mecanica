@@ -37,4 +37,6 @@ export const inviteUserSchema = z.object({
   email: emailSchema,
   name: z.string().trim().min(2).max(120),
   roleId: z.uuid(),
+  /** Sucursal base del usuario. Con una sola sucursal activa se asigna sola. */
+  branchId: z.uuid().optional(),
 });

@@ -2,7 +2,8 @@ import type { TenantTx } from "@/lib/db";
 import { normalizeWhatsapp } from "@/lib/workshop/documents";
 import { enqueueOutbound } from "./messaging";
 
-export type NotifyResult = "QUEUED" | "SIMULATED" | "SKIPPED_NO_CONSENT" | "SKIPPED_NO_CONTACT";
+export type NotifyResult =
+  "QUEUED" | "SIMULATED" | "SKIPPED_NO_CONSENT" | "SKIPPED_NO_CONTACT" | "SKIPPED_DISABLED";
 
 /**
  * Avisa al cliente por WhatsApp si dio su consentimiento y tiene número. Pasa por la cola
@@ -12,6 +13,9 @@ export async function notifyCustomer(
   tx: TenantTx,
   params: { customerId: string; key: string; body: string; relatedType: string; relatedId: string },
 ): Promise<NotifyResult> {
+  // Interruptor del dueño (Configuración → IA y canales): sin avisos no se encola nada.
+  const settings = await tx.tenantSettings.findFirst({ select: { whatsappNoticesEnabled: true } });
+  if (settings && !settings.whatsappNoticesEnabled) return "SKIPPED_DISABLED";
   const customer = await tx.customer.findFirst({
     where: { id: params.customerId },
     select: { whatsapp: true, phone: true, whatsappOptIn: true },

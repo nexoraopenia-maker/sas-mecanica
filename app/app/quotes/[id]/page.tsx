@@ -9,6 +9,7 @@ import { requireTenantUser } from "@/lib/auth/guards";
 import { es } from "@/lib/i18n/es";
 import { METHOD_LABEL, PAYMENT_METHODS } from "@/lib/pos/cash";
 import { formatDate } from "@/lib/workshop/format";
+import { getTenantLogoUrl } from "@/server/services/branding";
 import { getQuote } from "@/server/services/quotes";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,12 +17,21 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const user = await requireTenantUser();
   requirePermission(user, "pos:ver");
   const t = es.quotes;
-  const quote = await getQuote(user, id);
+  const [quote, logoUrl] = await Promise.all([getQuote(user, id), getTenantLogoUrl(user)]);
   const convertible = ["DRAFT", "SENT", "ACCEPTED"].includes(quote.status);
   const idempotencyKey = randomUUID();
 
   return (
     <>
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={es.company.logo}
+          className="h-16 w-auto max-w-48 rounded-lg bg-paper p-1"
+          data-testid="quote-logo"
+        />
+      ) : null}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold">Cotización #{quote.number}</h1>
         <span className="rounded-full bg-muted px-3 py-1 text-sm" data-testid="quote-status">

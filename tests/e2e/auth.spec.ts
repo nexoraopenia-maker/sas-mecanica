@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { goNav, openMenu } from "./helpers";
+import { goConfig, openMenu } from "./helpers";
 import { hashPassword } from "@/lib/auth/password";
 import { totpCode } from "@/lib/auth/totp";
 import { createClient } from "@/lib/db/raw.ts";
@@ -80,7 +80,7 @@ test.describe("cuenta demo", () => {
     await expect(page.getByRole("heading", { name: /Hola, Dueño Demo/ })).toBeVisible();
     expect(Number(await page.getByTestId("permission-count").innerText())).toBeGreaterThan(40);
 
-    await goNav(page, "Usuarios");
+    await goConfig(page, "usuarios");
     await expect(page.getByText("Mecánico Demo", { exact: true })).toBeVisible();
     await expect(page.getByText("Dueño Demo", { exact: true })).toBeVisible();
 
@@ -88,7 +88,7 @@ test.describe("cuenta demo", () => {
     await page.getByRole("button", { name: "Restaurar demo" }).click();
     await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
     await expect(page.getByTestId("demo-banner")).toBeVisible();
-    expect(firstUrl).toContain("/app/users");
+    expect(firstUrl).toContain("/app/configuracion");
   });
 
   test("la sesión demo no entra al panel SuperAdmin", async ({ page }) => {

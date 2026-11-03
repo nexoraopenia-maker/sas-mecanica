@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
+import { can, requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
 import { consumeRateLimit, withTenant, type TenantTx } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { ConflictError, RateLimitError } from "@/lib/errors";
@@ -7,9 +7,11 @@ import { decryptSecret, encryptSecret, maskSecret, secretHint } from "@/lib/secu
 import { assertPublicUrl, UnsafeUrlError } from "@/lib/security/net";
 import {
   aiSettingsSchema,
+  automationSwitchesSchema,
   channelSettingsSchema,
   testMessageSchema,
   type AiSettingsInput,
+  type AutomationSwitchesInput,
   type ChannelSettingsInput,
   type TestMessageInput,
 } from "@/lib/validation/settings";
@@ -360,4 +362,73 @@ export async function sendTestMessage(
     }),
   );
   return result;
+}
+
+export interface AutomationSwitches {
+  aiAgentEnabled: boolean;
+  whatsappNoticesEnabled: boolean;
+  humanApproval: boolean;
+}
+
+export async function getAutomationSwitches(actor: AuthUser): Promise<AutomationSwitches> {
+  if (!can(actor, "settings:ver") && !can(actor, "ai_agent:ver"))
+    requirePermission(actor, "settings:ver");
+  return withTenant(requireTenantId(actor), async (tx) => {
+    const s = await tx.tenantSettings.findFirstOrThrow({
+      select: { aiAgentEnabled: true, whatsappNoticesEnabled: true, aiMode: true },
+    });
+    return {
+      aiAgentEnabled: s.aiAgentEnabled,
+      whatsappNoticesEnabled: s.whatsappNoticesEnabled,
+      humanApproval: s.aiMode === "DRAFT_APPROVAL",
+    };
+  });
+}
+
+/**
+ * Interruptores de agente, avisos por WhatsApp y aprobación humana. Cada uno exige su permiso en el
+ * servidor: encender el envío automático (sin aprobación) pide además autorizar pedidos de IA.
+ */
+export async function updateAutomationSwitches(
+  actor: AuthUser,
+  input: AutomationSwitchesInput,
+  meta: RequestMeta = {},
+): Promise<void> {
+  const data = automationSwitchesSchema.parse(input);
+  const tenantId = requireTenantId(actor);
+  if (data.aiAgentEnabled !== undefined) requirePermission(actor, "ai_agent:editar");
+  if (data.whatsappNoticesEnabled !== undefined) requirePermission(actor, "settings:editar");
+  if (data.humanApproval !== undefined) {
+    requirePermission(actor, "ai_agent:editar");
+    if (data.humanApproval === false) requirePermission(actor, "ai_agent:autorizar_pedidos_ia");
+  }
+  await withTenant(tenantId, async (tx) => {
+    const before = await tx.tenantSettings.findFirstOrThrow();
+    const patch = {
+      ...(data.aiAgentEnabled !== undefined ? { aiAgentEnabled: data.aiAgentEnabled } : {}),
+      ...(data.whatsappNoticesEnabled !== undefined
+        ? { whatsappNoticesEnabled: data.whatsappNoticesEnabled }
+        : {}),
+      ...(data.humanApproval !== undefined
+        ? { aiMode: data.humanApproval ? ("DRAFT_APPROVAL" as const) : ("AUTOMATIC" as const) }
+        : {}),
+    };
+    if (Object.keys(patch).length === 0) return;
+    await tx.tenantSettings.update({ where: { id: before.id }, data: patch });
+    await recordAudit(tx, auditContextOf(actor, meta), {
+      action: "ai.switches_changed",
+      entityType: "tenant_settings",
+      entityId: before.id,
+      before: {
+        aiAgentEnabled: before.aiAgentEnabled,
+        whatsappNoticesEnabled: before.whatsappNoticesEnabled,
+        humanApproval: before.aiMode === "DRAFT_APPROVAL",
+      },
+      after: {
+        aiAgentEnabled: patch.aiAgentEnabled ?? before.aiAgentEnabled,
+        whatsappNoticesEnabled: patch.whatsappNoticesEnabled ?? before.whatsappNoticesEnabled,
+        humanApproval: (patch.aiMode ?? before.aiMode) === "DRAFT_APPROVAL",
+      },
+    });
+  });
 }

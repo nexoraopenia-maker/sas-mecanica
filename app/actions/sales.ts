@@ -578,7 +578,7 @@ export async function roleDiscountAction(
       field(formData, "percent"),
       await getRequestMeta(),
     );
-    revalidatePath("/app/roles");
+    revalidatePath("/app/configuracion");
     return { message: "Límite de descuento guardado." };
   });
 }

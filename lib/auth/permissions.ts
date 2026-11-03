@@ -120,3 +120,52 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     maxDiscountPercent: 0,
   },
 ];
+
+/**
+ * Plantillas de rol personalizado que el dueño crea con un clic desde Configuración → Roles.
+ * No son roles base (`RoleKey`): se guardan como roles propios del tenant y se pueden editar.
+ */
+export interface CustomRoleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  permissions: PermissionKey[];
+  maxDiscountPercent: number;
+}
+
+export const CUSTOM_ROLE_TEMPLATES: CustomRoleTemplate[] = [
+  {
+    id: "asesor_servicio",
+    name: "Asesor de servicio",
+    description:
+      "Vende y cobra, hace cotizaciones y órdenes de trabajo y atiende clientes. Sin costos de compra ni ajustes de stock",
+    permissions: [
+      ...keys("POS", [ver, crear]),
+      ...keys("CASH", [ver, crear]),
+      ...keys("BILLING", [ver, crear]),
+      ...keys("WORKSHOP", [ver, crear, editar]),
+      ...keys("CUSTOMERS", [ver, crear, editar]),
+      ...keys("WARRANTIES", [ver, crear]),
+      ...keys("CATALOG", [ver]),
+      ...keys("INVENTORY", [ver]),
+    ],
+    maxDiscountPercent: 5,
+  },
+];
+
+/**
+ * Matriz simplificada de capacidades por rol (Configuración → Roles). Cada capacidad es UN permiso
+ * concreto, así que marcarla o desmarcarla no toca el resto de permisos del rol.
+ */
+export const ROLE_CAPABILITIES: ReadonlyArray<{
+  id: string;
+  label: string;
+  permission: PermissionKey;
+}> = [
+  { id: "vender", label: "Vender y cobrar", permission: "pos:crear" },
+  { id: "costos", label: "Ver costos y márgenes", permission: "purchasing:ver_costos_compra" },
+  { id: "ordenes", label: "Órdenes de trabajo", permission: "workshop:ver" },
+  { id: "stock", label: "Ajustar stock", permission: "inventory:editar" },
+  { id: "anular", label: "Anular comprobantes", permission: "pos:anular_venta" },
+  { id: "config", label: "Configuración", permission: "settings:editar" },
+];

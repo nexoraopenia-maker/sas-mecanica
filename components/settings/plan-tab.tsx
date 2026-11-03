@@ -2,21 +2,23 @@ import { cancelSubscriptionAction, startCheckoutAction } from "@/app/actions/com
 import { ActionForm } from "@/components/forms/action-form";
 import { Alert } from "@/components/ui/alert";
 import { Card, CardTitle } from "@/components/ui/card";
-import { can, requirePermission } from "@/lib/auth/can";
-import { requireTenantUser } from "@/lib/auth/guards";
+import { can, type AuthUser } from "@/lib/auth/can";
+import { getEnv } from "@/lib/env";
+import { planChangeWhatsappUrl, salesWhatsappUrl } from "@/lib/sales-whatsapp";
+import { PlanLimits } from "@/components/settings/plan-limits";
+import { getPlanOverview } from "@/server/services/plan-overview";
 import { es } from "@/lib/i18n/es";
 import { formatDate, formatDateTime } from "@/lib/workshop/format";
 import { getSubscriptionView } from "@/server/services/subscription-billing";
 
-export default async function SubscriptionPage({
-  searchParams,
+export async function PlanTab({
+  user,
+  notice,
 }: {
-  searchParams: Promise<{ pago?: string; simulado?: string }>;
+  user: AuthUser;
+  notice: { pago?: string; simulado?: string };
 }) {
-  const user = await requireTenantUser();
-  requirePermission(user, "settings:ver");
   const t = es.subscription;
-  const notice = await searchParams;
   const view = await getSubscriptionView(user);
   const canEdit = can(user, "settings:editar");
   const owes =
@@ -24,10 +26,16 @@ export default async function SubscriptionPage({
     view.status === "PAST_DUE" ||
     view.status === "SUSPENDED" ||
     view.dueAmount !== null;
+  const overview = await getPlanOverview(user);
+  const tenantName = user.tenantName ?? es.app.name;
+  const whatsapp = view.isDemo
+    ? salesWhatsappUrl(getEnv().NEXT_PUBLIC_SALES_WHATSAPP, tenantName)
+    : planChangeWhatsappUrl(getEnv().NEXT_PUBLIC_SALES_WHATSAPP, tenantName, view.plan.name);
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">{t.title}</h1>
+      <PlanLimits overview={overview} whatsapp={whatsapp} isDemo={view.isDemo} />
+
       {notice.pago === "ok" ? <Alert tone="success">{t.paid}</Alert> : null}
       {notice.pago === "cancelado" ? <Alert>{t.cancelled}</Alert> : null}
       {notice.simulado && view.gateway === "SIMULATED" ? <Alert>{t.simulated}</Alert> : null}

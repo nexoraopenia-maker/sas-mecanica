@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { runAction, field, type ActionState } from "@/lib/action";
 import { requirePlatformUser, requireTenantUser } from "@/lib/auth/guards";
+import { LOGO_MAX_BYTES } from "@/lib/branding/logo";
 import { getRequestMeta } from "@/lib/http";
+import { removeTenantLogo, setTenantLogo } from "@/server/services/branding";
 import { updateCompanyProfile, updateOperations } from "@/server/services/company-settings";
 import {
   extendGrace,
@@ -34,7 +36,7 @@ export async function updateProfileAction(
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/settings");
+    revalidatePath("/app/configuracion");
     return { message: "Datos de la empresa guardados." };
   });
 }
@@ -50,7 +52,7 @@ export async function updateOperationsAction(
         taxName: field(formData, "taxName"),
         taxRate: Number(field(formData, "taxPercent")) / 100,
         pricesIncludeTax: checked(formData, "pricesIncludeTax"),
-        ticketWidthMm: field(formData, "ticketWidthMm"),
+        ticketWidthMm: formData.has("ticketWidthMm") ? field(formData, "ticketWidthMm") : undefined,
         tireMaxAgeYears: field(formData, "tireMaxAgeYears"),
         allowNegativeStock: checked(formData, "allowNegativeStock"),
         rotationWindowDays: field(formData, "rotationWindowDays"),
@@ -61,7 +63,7 @@ export async function updateOperationsAction(
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/settings");
+    revalidatePath("/app/configuracion");
     return { message: "Configuración operativa guardada." };
   });
 }
@@ -81,7 +83,7 @@ export async function cancelSubscriptionAction(
   return runAction(async () => {
     const cancel = field(formData, "cancel") === "1";
     await setCancelAtPeriodEnd(await requireTenantUser(), cancel, await getRequestMeta());
-    revalidatePath("/app/subscription");
+    revalidatePath("/app/configuracion");
     return {
       message: cancel
         ? "La suscripción terminará al final del periodo pagado."
@@ -130,5 +132,34 @@ export async function extendGraceAction(
     );
     revalidatePath("/admin/billing");
     return { message: "Gracia extendida." };
+  });
+}
+
+export async function uploadLogoAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const file = formData.get("logo");
+    if (!(file instanceof File) || file.size === 0)
+      return { error: "Elige una imagen para el logo" };
+    // El peso se valida ANTES de leer el archivo completo en memoria.
+    if (file.size > LOGO_MAX_BYTES)
+      return { error: "El logo pesa más de 1 MB. Reduce su tamaño e inténtalo de nuevo" };
+    await setTenantLogo(
+      await requireTenantUser(),
+      new Uint8Array(await file.arrayBuffer()),
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Logo actualizado." };
+  });
+}
+
+export async function removeLogoAction(_previous: ActionState): Promise<ActionState> {
+  return runAction(async () => {
+    await removeTenantLogo(await requireTenantUser(), await getRequestMeta());
+    revalidatePath("/app/configuracion");
+    return { message: "Logo eliminado." };
   });
 }

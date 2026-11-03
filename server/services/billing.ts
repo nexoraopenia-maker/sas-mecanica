@@ -23,6 +23,7 @@ import { decryptSecret, encryptSecret, maskSecret, secretHint } from "@/lib/secu
 import { assertPublicUrl, UnsafeUrlError } from "@/lib/security/net";
 import {
   invoiceSettingsSchema,
+  SERIES_KEYS,
   debitNoteSchema,
   type DebitNoteInput,
   type InvoiceSettingsInput,
@@ -177,6 +178,15 @@ async function loadProvider(tx: TenantTx, tenantId: string): Promise<InvoiceProv
   return null;
 }
 
+async function seriesUsage(tx: TenantTx, series: string[]): Promise<Record<string, number>> {
+  const rows = await tx.fiscalDocument.groupBy({
+    by: ["series"],
+    where: { series: { in: series } },
+    _count: { _all: true },
+  });
+  return Object.fromEntries(rows.map((row) => [row.series, row._count._all]));
+}
+
 export async function getInvoiceSettings(actor: AuthUser) {
   requirePermission(actor, "billing:ver");
   const tenantId = requireTenantId(actor);
@@ -210,6 +220,12 @@ export async function getInvoiceSettings(actor: AuthUser) {
       saleNoteSeries: s.saleNoteSeries,
       defaultCreditDays: s.defaultCreditDays,
       cashTolerance: s.cashTolerance.toString(),
+      ticketWidthMm: s.ticketWidthMm,
+      /** Comprobantes ya emitidos por cada serie vigente (para avisar antes de cambiarla). */
+      seriesInUse: await seriesUsage(
+        tx,
+        SERIES_KEYS.map((key) => s[key]),
+      ),
     };
   });
 }
@@ -233,6 +249,21 @@ export async function updateInvoiceSettings(
   }
   await withTenant(tenantId, async (tx) => {
     const current = await tx.tenantSettings.findFirstOrThrow();
+    // Cambiar una serie que ya emitió comprobantes exige confirmación explícita.
+    const changed = SERIES_KEYS.filter((name) => current[name] !== data[name]);
+    const usage = await seriesUsage(
+      tx,
+      changed.map((name) => current[name]),
+    );
+    const inUse = changed.filter((name) => (usage[current[name]] ?? 0) > 0);
+    if (inUse.length > 0 && !data.confirmSeriesChange) {
+      const name = inUse[0] as (typeof SERIES_KEYS)[number];
+      const count = usage[current[name]] ?? 0;
+      throw new ConflictError(
+        "SERIES_IN_USE",
+        `La serie ${current[name]} ya emitió ${count} comprobante(s). Si la cambias por ${data[name]}, los nuevos comprobantes empezarán en el correlativo 1. Marca la confirmación para continuar`,
+      );
+    }
     const key = getEnv().ENCRYPTION_KEY;
     if (data.provider !== "HTTP") {
       encrypted = null;
@@ -265,6 +296,7 @@ export async function updateInvoiceSettings(
         saleNoteSeries: data.saleNoteSeries,
         defaultCreditDays: data.defaultCreditDays,
         cashTolerance: data.cashTolerance,
+        ...(data.ticketWidthMm !== undefined ? { ticketWidthMm: data.ticketWidthMm } : {}),
       },
     });
     await recordAudit(tx, auditContextOf(actor, meta), {
@@ -273,14 +305,15 @@ export async function updateInvoiceSettings(
       entityId: current.id,
       before: {
         provider: current.invoiceProvider,
-        boletaSeries: current.boletaSeries,
-        facturaSeries: current.facturaSeries,
+        ticketWidthMm: current.ticketWidthMm,
+        ...Object.fromEntries(SERIES_KEYS.map((name) => [name, current[name]])),
       },
       // Nunca se audita el token: solo si cambió y sus últimos 4 caracteres.
       after: {
         provider: data.provider,
-        boletaSeries: data.boletaSeries,
-        facturaSeries: data.facturaSeries,
+        ticketWidthMm: data.ticketWidthMm ?? current.ticketWidthMm,
+        ...Object.fromEntries(SERIES_KEYS.map((name) => [name, data[name]])),
+        seriesChangeConfirmed: inUse.length > 0 ? true : undefined,
         tokenHint: data.token ? secretHint(data.token) : undefined,
       },
     });

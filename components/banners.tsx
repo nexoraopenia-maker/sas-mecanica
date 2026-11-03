@@ -57,7 +57,7 @@ export function Banners({ user }: { user: AuthUser }) {
                 : ""}
             </p>
             <Link
-              href="/app/subscription"
+              href="/app/configuracion?tab=plan"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               {es.banner.billingPay}
@@ -90,7 +90,7 @@ export function Banners({ user }: { user: AuthUser }) {
                 </a>
               ) : (
                 <Link
-                  href="/app/subscription"
+                  href="/app/configuracion?tab=plan"
                   className={buttonVariants({ size: "sm" })}
                   data-testid="demo-activate"
                 >

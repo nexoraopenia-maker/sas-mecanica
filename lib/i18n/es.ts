@@ -107,8 +107,23 @@ export const es = {
     enable: "Habilitar",
     save: "Guardar",
     statuses: { INVITED: "Invitado", ACTIVE: "Activo", DISABLED: "Deshabilitado" },
+    branch: "Sucursal",
+    noBranch: "Sin sucursal fija",
+    lastAccess: "Último acceso",
+    actions: "Acciones",
+    you: "tú",
+    usage: "Usuarios activos",
+    of: "de",
+    unlimited: "ilimitado",
+    limitReached: (used: number, max: number) =>
+      `Llegaste al límite de tu plan: ${used} de ${max} usuarios. Desactiva a alguien o cambia de plan para invitar a más personas.`,
   },
   roles: {
+    templates: "Plantillas de rol",
+    createTemplate: "Crear con un clic",
+    matrix: "Qué puede hacer cada rol",
+    matrixHelp:
+      "Marca las capacidades principales de cada rol. Abajo puedes ajustar cada permiso al detalle. El rol Administrador siempre tiene todo.",
     maxDiscount: "Descuento máximo por línea (%)",
     saveDiscount: "Guardar límite",
     title: "Roles y permisos",
@@ -120,6 +135,20 @@ export const es = {
     immutable: "El rol Administrador no se puede modificar.",
     users: "usuarios",
     name: "Nombre del rol",
+  },
+  settingsPage: {
+    title: "Configuración",
+    tabs: {
+      usuarios: "Usuarios",
+      roles: "Roles y permisos",
+      taller: "Datos del taller",
+      facturacion: "Facturación",
+      ia: "IA y canales",
+      plan: "Plan y suscripción",
+    },
+    changePlan: "Cambiar de plan",
+    limitReached: "Llegaste al límite de tu plan",
+    contactSupport: "Para activar o cambiar tu plan, contacta a soporte.",
   },
   catalog: {
     title: "Catálogo",
@@ -309,6 +338,13 @@ export const es = {
     simulated: "Pasarela simulada (desarrollo): el pago se confirma por webhook.",
   },
   company: {
+    logo: "Logo del taller",
+    logoEmpty: "Aún no subiste un logo. Se usará en tus tickets y cotizaciones.",
+    logoFile: "Imagen (PNG, JPG o WebP)",
+    logoUpload: "Subir logo",
+    logoRemove: "Quitar logo",
+    logoHelp: (maxMb: number, minSide: number, maxSide: number) =>
+      `PNG, JPG o WebP de hasta ${maxMb} MB, entre ${minSide} y ${maxSide} px por lado. No se admite SVG.`,
     profile: "Datos de la empresa",
     legalName: "Razón social",
     tradeName: "Nombre comercial",
@@ -515,6 +551,13 @@ export const es = {
     daysOverdue: "días de atraso",
   },
   billing: {
+    seriesUsed: "comprobante(s) emitidos con esta serie",
+    ticketWidth: "Ancho del ticket",
+    confirmSeries:
+      "Confirmo el cambio de una serie que ya emitió comprobantes: los nuevos empezarán en el correlativo 1.",
+    readOnly: "Solo lectura: tu rol no puede editar la facturación.",
+    settingsMoved: "Las series, el proveedor OSE y el ticket se editan en",
+    settingsLink: "Configuración → Facturación",
     title: "Facturación electrónica",
     documents: "Comprobantes",
     none: "Todavía no hay comprobantes.",
@@ -802,6 +845,17 @@ export const es = {
     },
   },
   settings: {
+    switchesTitle: "Interruptores",
+    switchesSave: "Guardar interruptores",
+    switchAgent: "Agente de compras a proveedores",
+    switchAgentHelp:
+      "Analiza tu stock y propone pedidos. Apagado, no se ejecuta ni de forma manual ni programada.",
+    switchWhatsapp: "Avisos a clientes por WhatsApp",
+    switchWhatsappHelp:
+      "Orden lista, recordatorios de mantenimiento y de cobro, garantías. Apagado, no se envía ninguno.",
+    switchApproval: "Aprobación humana antes de enviar pedidos",
+    switchApprovalHelp:
+      "Una persona revisa cada pedido del agente. Desmarcarla permite el envío automático dentro de los topes y exige permiso de autorizar pedidos de IA.",
     title: "Configuración",
     ai: "Agente IA",
     channels: "Canales de envío",

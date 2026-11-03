@@ -164,6 +164,18 @@ No hay una tabla `ServiceOrder` aparte: la **orden de trabajo (OT)** ya es la or
 - **Convenciones que debes confirmar con tu contador** (no pude verificarlas contra una fuente primaria de SUNAT): la boleta sin cliente va con documento tipo `0` y número `00000000`; el CUO es el correlativo del mes y el asiento lleva prefijo `M`; un mes sin movimientos se exporta vacío con indicador de contenido `0`.
 - **Importante:** desde 2021 SUNAT reemplazó el PLE por el **SIRE** (RVIE/RCE) para los contribuyentes obligados. Si tu empresa lo está, estos libros son de apoyo; valida el formato con el validador del PLE antes de presentarlo. Una cuenta sin RUC válido (como las demo) no puede exportar.
 
+## Catálogo y Configuración (rediseño, fases 2 y 3)
+
+- **Catálogo (`/app/catalog`):** paginado en el servidor (12 por página), con filtros por SKU/nombre/código de barras/OEM, medida de llanta (`205/55R16`, `205 55 16`, `205/55 r16`… equivalen), código OEM y vehículo. El semáforo de stock usa el **punto de reposición existente** (suma de las políticas por almacén): rojo en 0, ámbar en el punto o por debajo, verde por encima; sin punto de reposición, verde y sin barra (rojo si no hay stock). Costo y margen solo se envían al navegador con el permiso de ver costos.
+- **Limitación de los chips «Filtro» y «Frenos»:** no hay una columna de tipo para ellos; filtran por el **nombre de la categoría** (o de su categoría padre) que contenga «filtro» o «freno». Si tu catálogo usa otros nombres (p. ej. «Pastillas» sin la palabra «freno»), esos productos no aparecerán en el chip. Lubricante, Llantas y Baterías sí filtran por tipo de producto.
+- **Configuración (`/app/configuracion`):** seis pestañas (Usuarios, Roles y permisos, Datos del taller, Facturación, IA y canales, Plan y suscripción). `/app/users`, `/app/roles`, `/app/settings`, `/app/subscription` y `/app/ai` redirigen a su pestaña conservando la consulta (los retornos de pago y de aprobación de pedidos siguen funcionando).
+- **Usuarios:** con una sola sucursal activa se asigna sola; límite de usuarios del plan con aviso (también al reactivar); nadie puede desactivarse a sí mismo ni dejar al tenant sin administrador; solo un administrador otorga el rol Administrador.
+- **Roles:** plantilla «Asesor de servicio» creable con un clic como rol personalizado (no toca `RoleKey`) y matriz de capacidades (vender, costos, órdenes de trabajo, stock, anular, configuración).
+- **Logo:** PNG, JPG o WebP (nunca SVG) de hasta 1 MB y entre 64 y 2048 px por lado; el tipo se comprueba por los bytes, no por la extensión. Se guarda en el bucket privado `receipts` bajo `{tenantId}/branding/` y se sirve con URL temporal; aparece en el ticket de venta y en la cotización.
+- **Series:** boleta `B###` y factura `F###`, distintas entre sí y de las demás series (también lo imponen restricciones de la base de datos, migración `20261104120000_settings_phase3`, reversible con su `down.sql`). Cambiar una serie que ya emitió comprobantes exige una confirmación explícita y los nuevos comprobantes empiezan en el correlativo 1.
+- **IA y canales:** interruptores para el agente de compras (apagado no corre ni manual ni programado), los avisos por WhatsApp a clientes y la aprobación humana. La clave de OpenAI se cifra, se muestra con los últimos 4 caracteres y nunca se escribe en la bitácora.
+- **Plan:** límites con su uso y botón de WhatsApp (`NEXT_PUBLIC_SALES_WHATSAPP`) para activar o cambiar de plan.
+
 ## Migraciones
 
 - Nunca edites una migración ya aplicada.

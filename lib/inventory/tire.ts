@@ -10,7 +10,7 @@ export interface TireSize {
  */
 export function parseTireSize(input: string): TireSize | null {
   const text = input.trim().toUpperCase();
-  const separated = /^(\d{3})\s*[/\-\s]\s*(\d{2})\s*[-\sR]*\s*(\d{2}(?:[.,]5)?)$/.exec(text);
+  const separated = /^(\d{3})\s*[/\-\s]\s*(\d{2})\s*[-\s/R]*\s*(\d{2}(?:[.,]5)?)$/.exec(text);
   const compact = /^(\d{3})(\d{2})(\d{2})$/.exec(text);
   const match = separated ?? compact;
   if (!match) return null;

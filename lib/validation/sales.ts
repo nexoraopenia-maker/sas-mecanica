@@ -230,14 +230,36 @@ const seriesSchema = z
   .toUpperCase()
   .regex(/^[A-Z0-9]{4}$/, "La serie tiene 4 caracteres (letras o números)");
 
+/** Boleta: B + 3 dígitos. Factura: F + 3 dígitos (formato SUNAT habitual: B001, F001). */
+const boletaSeriesSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^B\d{3}$/, "La serie de boleta tiene el formato B### (p. ej. B001)");
+const facturaSeriesSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^F\d{3}$/, "La serie de factura tiene el formato F### (p. ej. F001)");
+
+export const SERIES_KEYS = [
+  "boletaSeries",
+  "facturaSeries",
+  "creditNoteBoletaSeries",
+  "creditNoteFacturaSeries",
+  "debitNoteBoletaSeries",
+  "debitNoteFacturaSeries",
+  "saleNoteSeries",
+] as const;
+
 export const invoiceSettingsSchema = z
   .object({
     provider: z.enum(["NONE", "SIMULATED", "HTTP"]),
     baseUrl: z.string().trim().max(300).optional(),
     token: z.string().trim().max(500).optional(),
     clearToken: z.boolean().default(false),
-    boletaSeries: seriesSchema,
-    facturaSeries: seriesSchema,
+    boletaSeries: boletaSeriesSchema,
+    facturaSeries: facturaSeriesSchema,
     creditNoteBoletaSeries: seriesSchema,
     creditNoteFacturaSeries: seriesSchema,
     debitNoteBoletaSeries: seriesSchema,
@@ -245,8 +267,27 @@ export const invoiceSettingsSchema = z
     saleNoteSeries: seriesSchema,
     defaultCreditDays: z.coerce.number().int().min(1).max(365),
     cashTolerance: z.coerce.number().min(0).max(1000),
+    /** Ancho del ticket térmico; ausente = conservar el actual. */
+    ticketWidthMm: z.coerce
+      .number()
+      .refine((v) => v === 58 || v === 80, "El ticket es de 58 o 80 mm")
+      .optional(),
+    /** Confirmación explícita para cambiar una serie que ya emitió comprobantes. */
+    confirmSeriesChange: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
+    const seen = new Map<string, string>();
+    for (const key of SERIES_KEYS) {
+      const series = value[key];
+      const other = seen.get(series);
+      if (other !== undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `La serie ${series} ya se usa en otro comprobante: cada serie debe ser distinta`,
+        });
+      else seen.set(series, key);
+    }
     if (value.provider === "HTTP" && !value.baseUrl)
       ctx.addIssue({
         code: "custom",

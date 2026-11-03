@@ -6,6 +6,7 @@ import { METHOD_LABEL } from "@/lib/pos/cash";
 import { amountInWords, DEMO_RUC, qrString } from "@/lib/billing/sunat";
 import { formatDateTime } from "@/lib/workshop/format";
 import { withTenant } from "@/lib/db";
+import { logoUrlOf } from "@/server/services/branding";
 import { getSale } from "@/server/services/sales";
 
 /** Comprobante imprimible: ticket térmico de 80 mm o A4. El navegador genera el PDF desde «Imprimir». */
@@ -22,11 +23,13 @@ export default async function PrintPage({
   requirePermission(user, "pos:ver");
   const sale = await getSale(user, id);
   const ticket = formato !== "a4";
-  const issuer = await withTenant(user.tenantId ?? "", (tx) =>
-    tx.tenant.findFirstOrThrow({
+  const tenantId = user.tenantId ?? "";
+  const { issuer, logoUrl } = await withTenant(tenantId, async (tx) => ({
+    issuer: await tx.tenant.findFirstOrThrow({
       select: { legalName: true, tradeName: true, taxId: true, address: true, isDemo: true },
     }),
-  );
+    logoUrl: await logoUrlOf(tx, tenantId),
+  }));
   const ruc = issuer.taxId ?? (issuer.isDemo ? DEMO_RUC : null);
   const doc = sale.documents.find((d) => d.type === "BOLETA" || d.type === "FACTURA");
   const t = es.pos;
@@ -61,6 +64,15 @@ export default async function PrintPage({
     >
       <PrintButton label={t.print} />
       <header className="text-center">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={issuer.tradeName ?? issuer.legalName}
+            className="mx-auto mb-1 max-h-16 w-auto max-w-full"
+            data-testid="print-logo"
+          />
+        ) : null}
         <p className="text-base font-bold">{issuer.tradeName ?? issuer.legalName}</p>
         <p>{issuer.legalName}</p>
         {ruc ? (

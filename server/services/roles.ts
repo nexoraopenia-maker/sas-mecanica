@@ -1,5 +1,11 @@
 import { requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
-import { isPermissionKey, permissionKey, type PermissionKey } from "@/lib/auth/permissions";
+import {
+  CUSTOM_ROLE_TEMPLATES,
+  ROLE_CAPABILITIES,
+  isPermissionKey,
+  permissionKey,
+  type PermissionKey,
+} from "@/lib/auth/permissions";
 import { withTenant } from "@/lib/db";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { z } from "zod";
@@ -164,6 +170,68 @@ export async function setRoleDiscountLimit(
       entityId: roleId,
       before: { maxDiscountPercent: Number(role.maxDiscountPercent) },
       after: { maxDiscountPercent: value },
+    });
+  });
+  invalidateAuthCache();
+}
+
+/** Crea con un clic un rol propio del tenant a partir de una plantilla (p. ej. «Asesor de servicio»). */
+export async function createRoleFromTemplate(
+  actor: AuthUser,
+  templateId: string,
+  meta: RequestMeta = {},
+) {
+  const template = CUSTOM_ROLE_TEMPLATES.find((item) => item.id === templateId);
+  if (!template) throw new NotFoundError("Plantilla de rol");
+  return createRole(
+    actor,
+    {
+      name: template.name,
+      description: template.description,
+      permissions: template.permissions,
+      maxDiscountPercent: template.maxDiscountPercent,
+    },
+    meta,
+  );
+}
+
+const capabilitiesSchema = z.object({
+  roleId: z.uuid(),
+  /** Ids de capacidad marcados; el resto de las capacidades de la matriz queda desmarcado. */
+  enabled: z.array(z.enum(ROLE_CAPABILITIES.map((c) => c.id) as [string, ...string[]])),
+});
+
+/** Aplica la matriz de capacidades a un rol conservando todos sus demás permisos. */
+export async function setRoleCapabilities(
+  actor: AuthUser,
+  input: z.input<typeof capabilitiesSchema>,
+  meta: RequestMeta = {},
+): Promise<void> {
+  requirePermission(actor, "users:editar");
+  const data = capabilitiesSchema.parse(input);
+  const managed = new Set<PermissionKey>(ROLE_CAPABILITIES.map((c) => c.permission));
+  const wanted = ROLE_CAPABILITIES.filter((c) => data.enabled.includes(c.id)).map(
+    (c) => c.permission,
+  );
+  await withTenant(requireTenantId(actor), async (tx) => {
+    const role = await tx.role.findFirst({
+      where: { id: data.roleId },
+      include: { permissions: { include: { permission: true } } },
+    });
+    if (!role) throw new NotFoundError("Rol");
+    if (role.key === "admin")
+      throw new ConflictError("ROLE_IMMUTABLE", "El rol Administrador no se puede modificar");
+    const current = role.permissions.map((rp) =>
+      permissionKey(rp.permission.module, rp.permission.action),
+    );
+    const next = [...current.filter((key) => !managed.has(key)), ...wanted];
+    await replacePermissions(tx, role.id, next);
+    await recordAudit(tx, auditContextOf(actor, meta), {
+      action: "role.permissions_changed",
+      entityType: "role",
+      entityId: role.id,
+      before: { permissions: [...current].sort() },
+      after: { permissions: [...new Set(next)].sort() },
     });
   });
   invalidateAuthCache();

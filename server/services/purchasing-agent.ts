@@ -361,6 +361,11 @@ export async function runPurchasingAgent(params: {
         if (!policy.enabled)
           throw new ConflictError("AI_DISABLED", "Tu plan no incluye el agente de compras con IA");
         const settings = await tx.tenantSettings.findFirstOrThrow();
+        if (!settings.aiAgentEnabled)
+          throw new ConflictError(
+            "AI_SWITCHED_OFF",
+            "El agente de compras está desactivado: actívalo en Configuración → IA y canales",
+          );
         const secrets = await loadTenantSecrets(tx, params.tenantId);
         if (!policy.simulated && !secrets.openaiKey)
           throw new ConflictError("AI_NO_KEY", "Configura la clave de OpenAI para usar el agente");
@@ -802,7 +807,7 @@ export async function listAgentTenantIds(): Promise<string[]> {
         deletedAt: null,
         isDemo: false,
         plan: { aiPurchasingAgent: true },
-        settings: { openaiApiKeyEncrypted: { not: null } },
+        settings: { openaiApiKeyEncrypted: { not: null }, aiAgentEnabled: true },
       },
       select: { id: true },
     }),

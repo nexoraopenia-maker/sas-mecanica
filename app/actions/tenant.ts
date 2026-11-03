@@ -4,8 +4,20 @@ import { revalidatePath } from "next/cache";
 import { runAction, field, type ActionState } from "@/lib/action";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { getRequestMeta } from "@/lib/http";
-import { createRole, deleteRole, setRolePermissions } from "@/server/services/roles";
-import { changeUserRole, inviteUser, resendInvite, setUserStatus } from "@/server/services/users";
+import {
+  createRole,
+  createRoleFromTemplate,
+  deleteRole,
+  setRoleCapabilities,
+  setRolePermissions,
+} from "@/server/services/roles";
+import {
+  changeUserBranch,
+  changeUserRole,
+  inviteUser,
+  resendInvite,
+  setUserStatus,
+} from "@/server/services/users";
 
 export async function inviteUserAction(
   _previous: ActionState,
@@ -19,10 +31,11 @@ export async function inviteUserAction(
         email: field(formData, "email"),
         name: field(formData, "name"),
         roleId: field(formData, "roleId"),
+        branchId: field(formData, "branchId") || undefined,
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/users");
+    revalidatePath("/app/configuracion");
     return { message: "Invitación enviada por correo." };
   });
 }
@@ -53,7 +66,7 @@ export async function userStatusAction(
       status,
       await getRequestMeta(),
     );
-    revalidatePath("/app/users");
+    revalidatePath("/app/configuracion");
     return { message: status === "DISABLED" ? "Usuario deshabilitado." : "Usuario habilitado." };
   });
 }
@@ -69,7 +82,7 @@ export async function changeRoleAction(
       field(formData, "roleId"),
       await getRequestMeta(),
     );
-    revalidatePath("/app/users");
+    revalidatePath("/app/configuracion");
     return { message: "Rol actualizado." };
   });
 }
@@ -88,7 +101,7 @@ export async function createRoleAction(
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/roles");
+    revalidatePath("/app/configuracion");
     return { message: "Rol creado." };
   });
 }
@@ -104,7 +117,7 @@ export async function rolePermissionsAction(
       formData.getAll("permissions").map(String),
       await getRequestMeta(),
     );
-    revalidatePath("/app/roles");
+    revalidatePath("/app/configuracion");
     return { message: "Permisos guardados." };
   });
 }
@@ -115,7 +128,52 @@ export async function deleteRoleAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     await deleteRole(await requireTenantUser(), field(formData, "roleId"), await getRequestMeta());
-    revalidatePath("/app/roles");
+    revalidatePath("/app/configuracion");
     return { message: "Rol eliminado." };
+  });
+}
+
+export async function changeUserBranchAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await changeUserBranch(
+      await requireTenantUser(),
+      { userId: field(formData, "userId"), branchId: field(formData, "branchId") || null },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Sucursal actualizada." };
+  });
+}
+
+export async function createRoleTemplateAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await createRoleFromTemplate(
+      await requireTenantUser(),
+      field(formData, "templateId"),
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Rol creado. Ya puedes asignarlo a tus usuarios." };
+  });
+}
+
+export async function roleCapabilitiesAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setRoleCapabilities(
+      await requireTenantUser(),
+      { roleId: field(formData, "roleId"), enabled: formData.getAll("capability").map(String) },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Capacidades guardadas." };
   });
 }

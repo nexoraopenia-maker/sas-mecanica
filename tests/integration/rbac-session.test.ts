@@ -232,7 +232,7 @@ describe("sesión, RBAC y revocación inmediata", () => {
       ).rejects.toBeInstanceOf(ConflictError);
       await expect(
         setUserStatus(solo.admin, solo.adminId, "DISABLED", meta()),
-      ).rejects.toBeInstanceOf(PermissionDeniedError); // ni a sí mismo
+      ).rejects.toMatchObject({ code: "SELF_DISABLE" }); // ni a sí mismo
     });
   });
 

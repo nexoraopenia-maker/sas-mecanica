@@ -243,7 +243,13 @@ export async function workOrderStepAction(
         revalidatePath("/app/workshop");
         // El formulario desaparece al cambiar de estado: el aviso viaja por la URL (solo códigos fijos).
         return {
-          redirectTo: `/app/workshop/${id}?aviso=${result.customerNotified === "SKIPPED_NO_CONSENT" || result.customerNotified === "SKIPPED_NO_CONTACT" ? "lista_sin_aviso" : "lista"}`,
+          redirectTo: `/app/workshop/${id}?aviso=${
+            result.customerNotified === "SKIPPED_NO_CONSENT" ||
+            result.customerNotified === "SKIPPED_NO_CONTACT" ||
+            result.customerNotified === "SKIPPED_DISABLED"
+              ? "lista_sin_aviso"
+              : "lista"
+          }`,
         };
       }
       case "reopen":

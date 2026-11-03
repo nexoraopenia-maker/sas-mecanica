@@ -67,21 +67,6 @@ const GROUPS: Array<{ label: string; items: Entry[] }> = [
       { href: "/app/reports", label: es.nav.reports, icon: "reports", needs: ["reports:ver"] },
     ],
   },
-  {
-    // Provisional: la Fase 3 los reúne en la pantalla de Configuración.
-    label: es.nav.groupAdmin,
-    items: [
-      {
-        href: "/app/subscription",
-        label: es.nav.subscription,
-        icon: "subscription",
-        needs: ["settings:ver"],
-      },
-      { href: "/app/ai", label: es.nav.ai, icon: "ai", needs: ["ai_agent:ver"] },
-      { href: "/app/users", label: es.nav.users, icon: "users", needs: ["users:ver"] },
-      { href: "/app/roles", label: es.nav.roles, icon: "roles", needs: ["users:ver"] },
-    ],
-  },
 ];
 
 function visibleGroups(user: AuthUser): NavGroup[] {
@@ -96,8 +81,11 @@ function visibleGroups(user: AuthUser): NavGroup[] {
 export default async function TenantLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireTenantUser();
   const settings: NavItem | null =
-    can(user, "settings:ver") || can(user, "ai_agent:ver")
-      ? { href: "/app/settings", label: es.nav.settings, icon: "settings" }
+    can(user, "settings:ver") ||
+    can(user, "users:ver") ||
+    can(user, "billing:ver") ||
+    can(user, "ai_agent:ver")
+      ? { href: "/app/configuracion", label: es.nav.settings, icon: "settings" }
       : null;
   return (
     <AppShell

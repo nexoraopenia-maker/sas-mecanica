@@ -51,9 +51,11 @@ export const operationsSchema = z.object({
     .min(0, "La tasa debe estar entre 0 % y 50 %")
     .max(0.5, "La tasa debe estar entre 0 % y 50 %"),
   pricesIncludeTax: z.boolean(),
+  /** Ausente = conservar (ahora se edita en Configuración → Facturación). */
   ticketWidthMm: z.coerce
     .number()
-    .refine((v) => v === 58 || v === 80, "El ticket es de 58 o 80 mm"),
+    .refine((v) => v === 58 || v === 80, "El ticket es de 58 o 80 mm")
+    .optional(),
   tireMaxAgeYears: z.coerce
     .number()
     .int("Usa años enteros")

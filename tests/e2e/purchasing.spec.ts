@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { goNav } from "./helpers";
+import { goConfig, goNav } from "./helpers";
 import { signWebhook } from "@/lib/security/webhook-signature";
 
 test.beforeEach(async ({ context }) => {
@@ -27,9 +27,9 @@ test.describe("agente IA de compras (demo)", () => {
     await enterDemo(page);
 
     // 1) Agente: propuestas controladas (sin OpenAI) en la bandeja.
-    await goNav(page, "Agente IA");
+    await goConfig(page, "ia");
     await expect(
-      page.getByRole("heading", { name: "Agente IA de compras", level: 1 }),
+      page.getByRole("heading", { name: "Agente IA de compras", level: 2 }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Ejecutar agente ahora" }).click();
     await expect(page.getByText(/pedido\(s\) propuesto\(s\) en la bandeja/)).toBeVisible({
@@ -62,7 +62,7 @@ test.describe("agente IA de compras (demo)", () => {
     expect(number).toBeTruthy();
 
     // 4) Configurar el webhook entrante: el secreto se muestra una sola vez.
-    await goNav(page, "Configuración");
+    await goConfig(page, "ia");
     await page.getByLabel("Generar nuevo secreto para webhooks entrantes").check();
     await page.getByRole("button", { name: "Guardar", exact: true }).last().click();
     const notice = await page.getByText(/Secreto para webhooks entrantes/).innerText();
@@ -116,7 +116,7 @@ test.describe("agente IA de compras (demo)", () => {
   }) => {
     await enterDemo(page);
     const apiKey = `sk-e2e-${randomUUID().replace(/-/g, "")}`;
-    await goNav(page, "Configuración");
+    await goConfig(page, "ia");
     await page.getByLabel("Clave de OpenAI", { exact: true }).fill("clave-con-formato-invalido");
     await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
     await expect(page.getByText(/formato esperado/)).toBeVisible();
@@ -134,11 +134,10 @@ test.describe("agente IA de compras (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await goNav(page, "Configuración");
+    await goConfig(page, "ia");
     await page.getByLabel("Modo").selectOption("AUTOMATIC");
     await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
     await expect(page.getByText("Configuración de IA guardada.")).toBeVisible();
-    await goNav(page, "Agente IA");
     await page.getByRole("button", { name: "Ejecutar agente ahora" }).click();
     await expect(page.getByTestId("draft").first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("draft").first()).toContainText(

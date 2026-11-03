@@ -577,6 +577,9 @@ model TenantSettings {
   aiMaxQtyPerSku        Decimal? @db.Decimal(14, 4)
   aiMaxOrdersPerDay     Int      @default(5)
   aiAutomationRules     Json?
+  // Interruptores del dueño (Configuración → IA y canales).
+  aiAgentEnabled         Boolean  @default(true)
+  whatsappNoticesEnabled Boolean  @default(true)
 
   // Canales
   whatsappProvider               WhatsAppProvider?

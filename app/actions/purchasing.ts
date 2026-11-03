@@ -18,6 +18,7 @@ import {
   receivePurchaseOrder,
   sendPurchaseOrder,
 } from "@/server/services/purchasing";
+import { updateAutomationSwitches } from "@/server/services/ai-settings";
 import { runAgentNow } from "@/server/services/purchasing-agent";
 import { createSupplier } from "@/server/services/suppliers";
 import { getAppUrl } from "@/lib/app-url";
@@ -34,7 +35,7 @@ const optNumber = (formData: FormData, name: string): string | null | undefined 
 export async function runAgentAction(_previous: ActionState): Promise<ActionState> {
   return runAction(async () => {
     const result = await runAgentNow(await requireTenantUser(), await getRequestMeta());
-    revalidatePath("/app/ai");
+    revalidatePath("/app/configuracion");
     if (result.status === "BLOCKED_BUDGET")
       return { error: "Presupuesto de IA agotado: el agente no se ejecutó." };
     if (result.status === "FAILED")
@@ -61,7 +62,7 @@ export async function approveDraftAction(
     revalidatePath("/app/purchasing");
     // El borrador sale de la bandeja: el aviso debe vivir en la página, no en su formulario.
     return {
-      redirectTo: `/app/ai?aprobada=${approved.number}&sim=${approved.delivery === "SIMULATED" ? 1 : 0}`,
+      redirectTo: `/app/configuracion?tab=ia&aprobada=${approved.number}&sim=${approved.delivery === "SIMULATED" ? 1 : 0}`,
     };
   });
 }
@@ -77,7 +78,7 @@ export async function rejectDraftAction(
       field(formData, "reason"),
       await getRequestMeta(),
     );
-    return { redirectTo: "/app/ai?rechazada=1" };
+    return { redirectTo: "/app/configuracion?tab=ia&rechazada=1" };
   });
 }
 
@@ -102,7 +103,7 @@ export async function updateAiSettingsAction(
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/settings");
+    revalidatePath("/app/configuracion");
     return { message: "Configuración de IA guardada." };
   });
 }
@@ -133,7 +134,7 @@ export async function updateChannelsAction(
       },
       await getRequestMeta(),
     );
-    revalidatePath("/app/settings");
+    revalidatePath("/app/configuracion");
     if (inboundSecret) {
       const tenantId = user.tenantId ?? "";
       return {
@@ -260,5 +261,24 @@ export async function orderStepAction(
     }
     revalidatePath("/app/purchasing");
     return { message };
+  });
+}
+
+export async function automationSwitchesAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await updateAutomationSwitches(
+      await requireTenantUser(),
+      {
+        aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
+        whatsappNoticesEnabled: formData.get("whatsappNoticesEnabled") === "on",
+        humanApproval: formData.get("humanApproval") === "on",
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Interruptores guardados." };
   });
 }

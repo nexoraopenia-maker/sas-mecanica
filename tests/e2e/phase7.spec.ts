@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { goNav } from "./helpers";
+import { goConfig, goNav } from "./helpers";
 
 test.beforeEach(async ({ context }) => {
   const octet = () => Math.floor(Math.random() * 250);
@@ -120,7 +120,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await goNav(page, "Configuración", { exact: true });
+    await goConfig(page, "taller");
     await page.getByLabel("Nombre comercial").fill("Taller Demo QA");
     await page.getByRole("button", { name: "Guardar datos" }).click();
     await expect(page.getByText("Datos de la empresa guardados.")).toBeVisible({ timeout: 30_000 });
@@ -145,7 +145,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
 
   test("Suscripción: la cuenta demo muestra su estado y no ofrece pagar", async ({ page }) => {
     await enterDemo(page);
-    await goNav(page, "Suscripción", { exact: true });
+    await goConfig(page, "plan");
     await expect(page.getByTestId("subscription-card")).toBeVisible();
     await expect(page.getByText("Las cuentas demo no se cobran.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Pagar ahora" })).toHaveCount(0);
