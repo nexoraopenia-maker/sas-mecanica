@@ -38,7 +38,7 @@ export const envSchema = z
     MERCADOPAGO_WEBHOOK_SECRET: optionalString,
     /** Solo desarrollo/CI: firma los webhooks de la pasarela «simulated». */
     BILLING_SIMULATED_SECRET: z.string().min(16).optional(),
-    // 2FA obligatorio del SuperAdmin. Solo se puede apagar fuera de producción (desarrollo local).
+    // 2FA obligatorio del SuperAdmin (true por defecto). Apagarlo es una decisión temporal del dueño: ver README.
     SUPERADMIN_REQUIRE_2FA: z.enum(["true", "false"]).default("true"),
     BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(30).default(7),
     /** Días entre cobros automáticos fallidos, separados por comas (p. ej. «1,3,5»). */
@@ -66,13 +66,6 @@ export const envSchema = z
         code: "custom",
         path: ["BILLING_GATEWAY"],
         message: "La pasarela «simulated» no puede usarse en producción",
-      });
-    }
-    if (env.NODE_ENV === "production" && env.SUPERADMIN_REQUIRE_2FA === "false") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["SUPERADMIN_REQUIRE_2FA"],
-        message: "El 2FA del SuperAdmin no puede desactivarse en producción",
       });
     }
     if (env.NODE_ENV !== "production") return;

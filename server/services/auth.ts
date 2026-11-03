@@ -151,8 +151,13 @@ export async function login(
   );
 
   let mfa: MfaStage = "none";
-  // El 2FA del SuperAdmin es obligatorio salvo que el entorno lo apague (solo desarrollo; ver lib/env.ts).
+  // El 2FA del SuperAdmin es obligatorio salvo que el entorno lo apague (SUPERADMIN_REQUIRE_2FA=false).
   const requireMfa = options.requireSuperAdmin2fa ?? getEnv().SUPERADMIN_REQUIRE_2FA === "true";
+  if (row.isSuperAdmin && !requireMfa && getEnv().NODE_ENV === "production")
+    logger.warn(
+      { userId: row.id },
+      "SuperAdmin sin 2FA: SUPERADMIN_REQUIRE_2FA=false en producción",
+    );
   if (row.isSuperAdmin && requireMfa) {
     const status = await withPlatform((db) =>
       db.user.findUniqueOrThrow({ where: { id: row.id }, select: { totpEnabledAt: true } }),

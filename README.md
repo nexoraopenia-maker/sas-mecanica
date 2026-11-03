@@ -67,7 +67,7 @@ El stock es el resultado de `kardex_movements` (solo inserción). Un trigger `SE
 
 - **Sesión:** cookie HTTP-only firmada (`jose`, HS256; `__Host-` + `Secure` en producción). Lleva `userId`, `tenantId`, `sessionVersion`, `mfa` e `imp`; **no** lleva permisos: se leen de la BD en cada petición (caché de 15 s) y se filtran por los módulos del plan. Cambiar el rol, deshabilitar al usuario, restablecer la contraseña o suspender el tenant surten efecto de inmediato.
 - **Contraseñas:** `scrypt` (sal por usuario, parámetros dentro del hash), política de 10+ caracteres con letras y números, bloqueo de 15 min tras 5 fallos, tiempos iguales para "no existe" y "clave incorrecta".
-- **2FA TOTP (RFC 6238)** obligatorio para SuperAdmin, secreto cifrado con AES-256-GCM atado al usuario. Sin 2FA completado la sesión solo sirve para `/login/mfa`.
+- **2FA TOTP (RFC 6238)** obligatorio para SuperAdmin, secreto cifrado con AES-256-GCM atado al usuario. Sin 2FA completado la sesión solo sirve para `/login/mfa`. **Desactivación temporal:** `SUPERADMIN_REQUIRE_2FA=false` (variable de entorno) permite entrar solo con correo y contraseña, también en producción; cada ingreso así deja una advertencia en el log. Para reactivarlo, quita la variable o pon `true` y vuelve a desplegar.
 - **Rate limit** en BD (`rate_limit_buckets`, válido en serverless): login por IP y por correo, 2FA, recuperación de contraseña y demo. **Captcha** Cloudflare Turnstile en "Acceso Demo" (obligatorio en producción).
 - **RBAC:** `can(user, 'modulo:accion')` y `requirePermission()` en cada servicio (nunca solo en la UI). Roles base (Administrador, Jefe de Almacén, Cajero/Vendedor, Mecánico) + roles personalizados por tenant. El rol Administrador es inmutable y siempre debe quedar un administrador activo.
 - **Límites de plan en el backend:** `assertWithinPlan()` (usuarios, sucursales, almacenes) y módulos efectivos (plan ∩ módulos activados por el tenant). Lanzan `PlanLimitError` / `ModuleDisabledError`.
@@ -316,4 +316,5 @@ supabase/            SQL de Storage
 tests/               unit, integration, e2e
 scripts/             partialize-migration, db-app-role
 ```
+
 # sas-mecanica

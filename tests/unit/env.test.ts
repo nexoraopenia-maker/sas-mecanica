@@ -103,8 +103,8 @@ describe("validación de entorno", () => {
       SMTP_URL: "smtp://a:b@h:25",
       STORAGE_DRIVER: "local",
     };
-    expect(() => parseEnv({ ...prod, SUPERADMIN_REQUIRE_2FA: "false" })).toThrow(
-      /no puede desactivarse en producción/,
+    expect(parseEnv({ ...prod, SUPERADMIN_REQUIRE_2FA: "false" }).SUPERADMIN_REQUIRE_2FA).toBe(
+      "false",
     );
     expect(() => parseEnv({ ...prod })).not.toThrow();
   });
