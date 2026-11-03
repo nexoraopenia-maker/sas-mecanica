@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CATALOG_CHIP_IDS } from "@/lib/catalog/chips";
 import { parseDot, parseTireSize } from "@/lib/inventory/tire";
 
 const text = (max: number) =>
@@ -175,6 +176,27 @@ export const productSearchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type ProductSearchInput = z.input<typeof productSearchSchema>;
+
+export const CATALOG_PAGE_SIZE = 12;
+
+/** Listado paginado del catálogo (pantalla /app/catalog). La paginación y los filtros se resuelven en el servidor. */
+export const catalogListSchema = z
+  .object({
+    q: text(100).optional(),
+    tireSize: text(30).optional(),
+    code: text(60).optional(),
+    make: text(60).optional(),
+    model: text(60).optional(),
+    year: z.coerce.number().int().min(1950).max(2100).optional(),
+    chip: z.enum(CATALOG_CHIP_IDS).default("todos"),
+    page: z.coerce.number().int().min(1).max(100_000).default(1),
+    pageSize: z.coerce.number().int().min(6).max(48).default(CATALOG_PAGE_SIZE),
+  })
+  .refine((value) => value.tireSize === undefined || parseTireSize(value.tireSize) !== null, {
+    message: "Medida de llanta inválida (ej.: 205/55 R16)",
+    path: ["tireSize"],
+  });
+export type CatalogListInput = z.input<typeof catalogListSchema>;
 
 export const dotSchema = z
   .string()

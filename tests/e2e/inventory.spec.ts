@@ -58,6 +58,38 @@ test.describe("catálogo e inventario (demo)", () => {
     ).toBeVisible();
   });
 
+  test("catálogo: chips, semáforo de stock, costo y margen, paginación y estados vacíos", async ({
+    page,
+  }) => {
+    await enterDemo(page);
+    await page.goto("/app/catalog");
+    await expect(page.getByTestId("product-card")).toHaveCount(12);
+    await expect(page.getByTestId("stock-light").first()).toBeVisible();
+    // El administrador demo ve costo y margen.
+    await expect(page.getByTestId("product-cost").first()).toContainText("Margen");
+
+    // Paginación en el servidor: la página 2 trae otros productos y la URL la conserva.
+    const first = await page.getByTestId("product-card").first().innerText();
+    await page.getByRole("link", { name: "Siguiente" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    expect(await page.getByTestId("product-card").first().innerText()).not.toBe(first);
+
+    // Chips de categoría: solo llantas, y el chip activo queda marcado.
+    await page.getByTestId("chip-llantas").click();
+    await expect(page).toHaveURL(/chip=llantas/);
+    await expect(page.getByTestId("chip-llantas")).toHaveAttribute("aria-current", "true");
+    const cards = page.getByTestId("product-card");
+    await expect(cards.first()).toBeVisible();
+    for (const text of await cards.allInnerTexts()) expect(text).toContain("Llanta");
+
+    // Sin resultados: mensaje útil y salida para limpiar los filtros.
+    await page.goto("/app/catalog?q=zzzz-no-existe");
+    const empty = page.getByTestId("catalog-empty");
+    await expect(empty).toContainText("No hay productos con ese criterio.");
+    await empty.getByRole("link", { name: "Limpiar filtros" }).click();
+    await expect(page.getByTestId("product-card").first()).toBeVisible();
+  });
+
   test("crea una llanta, registra su entrada con DOT y un ajuste con motivo", async ({ page }) => {
     await enterDemo(page);
     const sku = `E2E-${randomUUID().slice(0, 6)}`.toUpperCase();

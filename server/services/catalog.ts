@@ -1,13 +1,19 @@
 import { can, requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
 import { Prisma, softDeleteData, withTenant, type ProductKind, type TenantTx } from "@/lib/db";
 import { ConflictError, NotFoundError, PermissionDeniedError } from "@/lib/errors";
+import { CATALOG_CHIPS } from "@/lib/catalog/chips";
+import { marginPercent, netSalePrice } from "@/lib/catalog/margin";
+import { stockIndicator, type StockIndicator } from "@/lib/catalog/stock-light";
+import { effectiveThresholds } from "@/lib/inventory/status";
 import { formatTireSize, isTireTooOld, parseTireSize } from "@/lib/inventory/tire";
 import {
+  catalogListSchema,
   compatibilitySchema,
   createProductSchema,
   equivalenceSchema,
   productSearchSchema,
   updateProductSchema,
+  type CatalogListInput,
   type CreateProductInput,
   type ProductSearchInput,
   type UpdateProductInput,
@@ -516,6 +522,138 @@ export async function searchProducts(
     });
     const byProduct = new Map(totals.map((t) => [t.productId, Number(t._sum.quantity ?? 0)]));
     return views.map((view) => ({ ...view, stock: byProduct.get(view.id) ?? 0 }));
+  });
+}
+
+export interface CatalogItem extends ProductView {
+  categoryName: string | null;
+  /** Solo con `inventory:ver` y para productos con control de stock. */
+  stockInfo?: StockIndicator & { quantity: number; reorderPoint: number };
+  /** Solo con `purchasing:ver_costos_compra`. Null si no hay costo registrado. */
+  marginPercent?: string | null;
+}
+
+export interface CatalogPage {
+  items: CatalogItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  /** Hay algún filtro activo (distingue «catálogo vacío» de «sin resultados»). */
+  filtered: boolean;
+}
+
+function chipWhere(chipId: string): Prisma.ProductWhereInput | null {
+  const chip = CATALOG_CHIPS.find((c) => c.id === chipId);
+  if (!chip) return null;
+  if ("kind" in chip) return { kind: chip.kind };
+  if ("category" in chip) {
+    const match = { contains: chip.category, mode: "insensitive" } as const;
+    return { category: { OR: [{ name: match }, { parent: { name: match } }] } };
+  }
+  return null;
+}
+
+/**
+ * Catálogo paginado en el servidor: búsqueda (SKU, nombre, código de barras u OEM), medida de llanta, código OEM,
+ * vehículo (marca, modelo, año) y chip de categoría. Costo y margen solo con `purchasing:ver_costos_compra`;
+ * el semáforo de stock solo con `inventory:ver` y usa el punto de reposición existente (sin stock máximo).
+ */
+export async function listCatalog(
+  actor: AuthUser,
+  input: CatalogListInput = {},
+): Promise<CatalogPage> {
+  requirePermission(actor, "catalog:ver");
+  const data = catalogListSchema.parse(input);
+  const canSeeCost = can(actor, "purchasing:ver_costos_compra");
+  const canSeeStock = can(actor, "inventory:ver");
+
+  const and: Prisma.ProductWhereInput[] = [
+    buildSearchWhere(
+      productSearchSchema.parse({ q: data.q, tireSize: data.tireSize, code: data.code }),
+    ),
+  ];
+  const chip = chipWhere(data.chip);
+  if (chip) and.push(chip);
+  if (data.make || data.model || data.year !== undefined) {
+    const compat: Prisma.VehicleCompatibilityWhereInput[] = [];
+    if (data.make) compat.push({ make: { equals: data.make, mode: "insensitive" } });
+    if (data.model) compat.push({ model: { contains: data.model, mode: "insensitive" } });
+    if (data.year !== undefined) {
+      compat.push(
+        { OR: [{ yearFrom: null }, { yearFrom: { lte: data.year } }] },
+        { OR: [{ yearTo: null }, { yearTo: { gte: data.year } }] },
+      );
+    }
+    and.push({ compatibilities: { some: { AND: compat } } });
+  }
+  const where: Prisma.ProductWhereInput = { AND: and };
+  const filtered = Boolean(
+    data.q ||
+    data.tireSize ||
+    data.code ||
+    data.make ||
+    data.model ||
+    data.year !== undefined ||
+    data.chip !== "todos",
+  );
+
+  return withTenant(requireTenantId(actor), async (tx) => {
+    const total = await tx.product.count({ where });
+    const pageCount = Math.max(1, Math.ceil(total / data.pageSize));
+    const page = Math.min(data.page, pageCount);
+    const rows = await tx.product.findMany({
+      where,
+      include: { ...productInclude, category: { select: { name: true } } },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      skip: (page - 1) * data.pageSize,
+      take: data.pageSize,
+    });
+
+    const ids = rows.map((r) => r.id);
+    const [balances, policies, settings] = await Promise.all([
+      canSeeStock && ids.length
+        ? tx.stockBalance.groupBy({
+            by: ["productId"],
+            where: { productId: { in: ids } },
+            _sum: { quantity: true },
+          })
+        : [],
+      canSeeStock && ids.length
+        ? tx.reorderPolicy.findMany({ where: { productId: { in: ids } } })
+        : [],
+      canSeeCost
+        ? tx.tenantSettings.findFirstOrThrow({ select: { taxRate: true, pricesIncludeTax: true } })
+        : null,
+    ]);
+    const stockOf = new Map(balances.map((b) => [b.productId, Number(b._sum.quantity ?? 0)]));
+    const pointOf = new Map<string, number>();
+    for (const policy of policies)
+      pointOf.set(
+        policy.productId,
+        (pointOf.get(policy.productId) ?? 0) + effectiveThresholds(policy).reorderPoint,
+      );
+
+    const items = rows.map((row): CatalogItem => {
+      const item: CatalogItem = {
+        ...toView(row, canSeeCost),
+        categoryName: row.category?.name ?? null,
+      };
+      if (canSeeStock && row.isStocked) {
+        const quantity = stockOf.get(row.id) ?? 0;
+        const reorderPoint = pointOf.get(row.id) ?? 0;
+        item.stockInfo = { ...stockIndicator(quantity, reorderPoint), quantity, reorderPoint };
+      }
+      if (canSeeCost && settings) {
+        const net = netSalePrice(row.salePrice.toString(), row.taxAffectation, {
+          taxRate: settings.taxRate.toString(),
+          pricesIncludeTax: settings.pricesIncludeTax,
+        });
+        item.marginPercent = marginPercent(net, row.lastPurchaseCost?.toString());
+      }
+      return item;
+    });
+    return { items, total, page, pageSize: data.pageSize, pageCount, filtered };
   });
 }
 
