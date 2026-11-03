@@ -1,4 +1,5 @@
 import { Banners } from "@/components/banners";
+import { OfflineProvider } from "@/components/offline/offline-provider";
 import { AppShell, type NavGroup, type NavItem } from "@/components/shell/app-shell";
 import { can, type AuthUser } from "@/lib/auth/can";
 import type { PermissionKey } from "@/lib/auth/permissions";
@@ -88,18 +89,23 @@ export default async function TenantLayout({ children }: Readonly<{ children: Re
       ? { href: "/app/configuracion", label: es.nav.settings, icon: "settings" }
       : null;
   return (
-    <AppShell
-      groups={visibleGroups(user)}
-      settings={settings}
-      canSell={can(user, "pos:crear")}
-      user={{
-        name: user.name,
-        roleName: user.roleName ?? "",
-        tenantName: user.tenantName ?? es.app.name,
-      }}
-      banners={<Banners user={user} />}
+    <OfflineProvider
+      owner={{ tenantId: user.tenantId ?? "", userId: user.userId }}
+      canSell={can(user, "pos:crear") && can(user, "catalog:ver")}
     >
-      {children}
-    </AppShell>
+      <AppShell
+        groups={visibleGroups(user)}
+        settings={settings}
+        canSell={can(user, "pos:crear")}
+        user={{
+          name: user.name,
+          roleName: user.roleName ?? "",
+          tenantName: user.tenantName ?? es.app.name,
+        }}
+        banners={<Banners user={user} />}
+      >
+        {children}
+      </AppShell>
+    </OfflineProvider>
   );
 }

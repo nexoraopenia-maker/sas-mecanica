@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { BRAND_BACKGROUND } from "@/lib/brand";
 
 const ROOT = join(__dirname, "..", "..");
 
@@ -58,7 +59,8 @@ describe("identidad visual: solo tokens, sin colores sueltos", () => {
       "danger",
     ])
       expect(css).toMatch(new RegExp(`--color-${token}:`));
-    expect(css).toContain("#050508");
+    expect(css).toContain(BRAND_BACKGROUND);
+    expect(css).toMatch(new RegExp(`--background:\\s*${BRAND_BACKGROUND};`));
     expect(css).toContain("--glow-cyan: 0 245 255");
     expect(css).toContain("--glow-violet: 191 90 242");
   });

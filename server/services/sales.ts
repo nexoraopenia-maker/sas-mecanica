@@ -6,6 +6,7 @@ import { toDocumentLine, type DocumentLine } from "@/lib/billing/payload";
 import {
   CREDIT_NOTE_REASONS,
   formatDocumentNumber,
+  validateIgvRate,
   validateIssuance,
   type FiscalType,
 } from "@/lib/billing/sunat";
@@ -303,6 +304,8 @@ export async function createSaleCore(
   } else {
     const problem = validateIssuance(data.documentType, Number(total), buyer);
     if (problem) throw new ConflictError("DOC_RULE", problem);
+    const igv = validateIgvRate(ctx.taxRate, priced.totals.taxed);
+    if (igv) throw new ConflictError("IGV_RATE", igv);
   }
 
   const settlement = await settle(tx, data, total);

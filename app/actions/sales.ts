@@ -4,8 +4,6 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { runAction, field, type ActionState } from "@/lib/action";
 import { requireTenantUser } from "@/lib/auth/guards";
-import { DomainError, toDomainError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
 import { getRequestMeta } from "@/lib/http";
 import {
   issueDebitNote,
@@ -14,8 +12,6 @@ import {
   updateInvoiceSettings,
 } from "@/server/services/billing";
 import { addCashMovement, closeCashSession, openCashSession } from "@/server/services/cash";
-import { searchProducts } from "@/server/services/catalog";
-import { searchCustomers } from "@/server/services/customers";
 import {
   convertQuoteToSale,
   convertQuoteToWorkOrder,
@@ -24,158 +20,14 @@ import {
 } from "@/server/services/quotes";
 import { collectReceivable } from "@/server/services/receivables";
 import { setRoleDiscountLimit } from "@/server/services/roles";
-import {
-  convertWorkOrderToSale,
-  createSale,
-  previewSale,
-  returnSale,
-  voidSale,
-} from "@/server/services/sales";
-import { findVehicleByPlate } from "@/server/services/vehicles";
-import { z } from "zod";
+import { convertWorkOrderToSale, createSale, returnSale, voidSale } from "@/server/services/sales";
 
 const opt = (formData: FormData, name: string): string | undefined =>
   field(formData, name).trim() || undefined;
 const checked = (formData: FormData, name: string): boolean => formData.get(name) === "on";
 
-/** Los errores de las consultas del mostrador se devuelven como texto; nunca se filtra un error crudo. */
-function messageOf(error: unknown): string {
-  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Datos inválidos";
-  const mapped = toDomainError(error);
-  if (mapped instanceof DomainError) return mapped.message;
-  logger.error({ err: error }, "error inesperado en una consulta del mostrador");
-  return "Ocurrió un error inesperado. Inténtalo de nuevo.";
-}
-
-// ---------------------------------------------------------------------------
-// Consultas del mostrador (las llama el cliente mientras el cajero trabaja)
-// ---------------------------------------------------------------------------
-
-export interface PosProduct {
-  id: string;
-  sku: string;
-  name: string;
-  kind: string;
-  brand: string | null;
-  salePrice: string;
-  stock: number | null;
-  trackingMode: "NONE" | "LOT" | "SERIAL";
-  isStocked: boolean;
-}
-
-export async function posSearchAction(query: {
-  q?: string;
-  tireSize?: string;
-  make?: string;
-  model?: string;
-}): Promise<{ products: PosProduct[]; error?: string }> {
-  try {
-    const user = await requireTenantUser();
-    const products = await searchProducts(user, {
-      q: query.q?.trim() || undefined,
-      tireSize: query.tireSize?.trim() || undefined,
-      vehicle: query.make?.trim()
-        ? { make: query.make.trim(), model: query.model?.trim() || undefined }
-        : undefined,
-      limit: 30,
-    });
-    return {
-      products: products.map((p) => ({
-        id: p.id,
-        sku: p.sku,
-        name: p.name,
-        kind: p.kind,
-        brand: p.brand,
-        salePrice: p.salePrice,
-        stock: p.stock ?? null,
-        trackingMode: p.trackingMode,
-        isStocked: p.isStocked,
-      })),
-    };
-  } catch (error) {
-    return { products: [], error: messageOf(error) };
-  }
-}
-
-export async function posCustomerSearchAction(q: string): Promise<{
-  customers: Array<{
-    id: string;
-    name: string;
-    docType: string;
-    docNumber: string | null;
-    plates: string[];
-  }>;
-  error?: string;
-}> {
-  try {
-    const rows = await searchCustomers(await requireTenantUser(), q, 8);
-    return {
-      customers: rows.map((c) => ({
-        id: c.id,
-        name: c.name,
-        docType: c.docType,
-        docNumber: c.docNumber,
-        plates: c.vehicles.map((v) => v.plate),
-      })),
-    };
-  } catch (error) {
-    return { customers: [], error: messageOf(error) };
-  }
-}
-
-/** Placa → cliente y vehículo, para facturar al dueño y buscar repuestos compatibles. */
-export async function posPlateAction(plate: string): Promise<{
-  found: null | {
-    vehicleId: string;
-    plate: string;
-    make: string | null;
-    model: string | null;
-    customer: { id: string; name: string; docType: string; docNumber: string | null };
-  };
-  error?: string;
-}> {
-  try {
-    const vehicle = await findVehicleByPlate(await requireTenantUser(), plate);
-    if (!vehicle) return { found: null };
-    return {
-      found: {
-        vehicleId: vehicle.id,
-        plate: vehicle.plate,
-        make: vehicle.make,
-        model: vehicle.model,
-        customer: {
-          id: vehicle.customer.id,
-          name: vehicle.customer.name,
-          docType: vehicle.customer.docType,
-          docNumber: vehicle.customer.docNumber,
-        },
-      },
-    };
-  } catch (error) {
-    return { found: null, error: messageOf(error) };
-  }
-}
-
-export async function posPreviewAction(items: unknown): Promise<{
-  totals?: { subtotal: string; tax: string; total: string; discount: string };
-  lines?: Array<{ lineTotal: string; unitPrice: string }>;
-  error?: string;
-}> {
-  try {
-    const result = await previewSale(await requireTenantUser(), items as never);
-    return {
-      totals: {
-        subtotal: result.totals.subtotal,
-        tax: result.totals.tax,
-        total: result.totals.total,
-        discount: result.totals.discount,
-      },
-      lines: result.lines.map((l) => ({ lineTotal: l.lineTotal, unitPrice: l.unitPrice })),
-    };
-  } catch (error) {
-    return { error: messageOf(error) };
-  }
-}
+// Las consultas del mostrador (productos, clientes, placas) ya no son acciones: viven en /api/pos/* como GET
+// cancelables y en paralelo (una acción de servidor espera en fila a las demás y hacía lento el mostrador).
 
 /** Cobra y registra la venta. El cliente manda una clave de idempotencia: un doble clic no vende dos veces. */
 export async function createSaleAction(payload: unknown): Promise<ActionState> {

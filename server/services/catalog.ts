@@ -405,7 +405,9 @@ export async function getProduct(
   });
 }
 
-function buildSearchWhere(data: z.output<typeof productSearchSchema>): Prisma.ProductWhereInput {
+export function buildSearchWhere(
+  data: z.output<typeof productSearchSchema>,
+): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
   if (!data.includeInactive) and.push({ isActive: true });
   if (data.kind) and.push({ kind: data.kind });

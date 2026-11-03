@@ -95,7 +95,10 @@ export default async function BillingPage({
       {canEdit ? (
         <p className="text-sm text-muted-foreground">
           {t.settingsMoved}{" "}
-          <Link className="text-primary underline" href="/app/configuracion?tab=facturacion">
+          <Link
+            className="inline-flex min-h-11 items-center text-primary underline"
+            href="/app/configuracion?tab=facturacion"
+          >
             {t.settingsLink}
           </Link>
         </p>

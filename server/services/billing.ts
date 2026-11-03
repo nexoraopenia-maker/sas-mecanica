@@ -16,6 +16,7 @@ import {
   DEBIT_NOTE_REASONS,
   DEMO_RUC,
   formatDocumentNumber,
+  seriesMatchesType,
   type Buyer,
   type FiscalType,
 } from "@/lib/billing/sunat";
@@ -126,6 +127,12 @@ export async function createPendingDocument(tx: TenantTx, input: PendingDocument
   const existing = await tx.fiscalDocument.findFirst({ where: { docKey: input.docKey } });
   if (existing) return existing;
   const totals = totalsOfLines(input.lines);
+  // Defensa en profundidad: la serie configurada debe corresponder al tipo (B### boletas, F### facturas).
+  if (!seriesMatchesType(input.type, input.series, input.related?.type))
+    throw new ConflictError(
+      "SERIES_MISMATCH",
+      `La serie ${input.series} no corresponde a este comprobante: revisa Configuración → Facturación`,
+    );
   const correlative = await nextSequence(tx, input.type, input.series);
   return tx.fiscalDocument.create({
     data: {

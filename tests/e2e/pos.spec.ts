@@ -34,8 +34,8 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
     await openCash(page, "100");
 
     // El lector de código escribe el SKU y envía Enter: entra directo al carrito.
-    await page.getByLabel("Código de barras o SKU").fill("FR-PAST-ACCENT-BOSCH");
-    await page.getByLabel("Código de barras o SKU").press("Enter");
+    await page.getByLabel("Buscar producto o escanear código").fill("FR-PAST-ACCENT-BOSCH");
+    await page.getByLabel("Buscar producto o escanear código").press("Enter");
     await expect(page.getByTestId("cart-line")).toHaveCount(1, { timeout: 30_000 });
     await expect(page.getByTestId("pos-total")).toContainText("S/", { timeout: 30_000 });
     const total = (await page.getByTestId("pos-total").innerText()).replace("S/", "").trim();
@@ -92,8 +92,8 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
   }) => {
     await enterDemo(page);
     await openCash(page, "0");
-    await page.getByLabel("Código de barras o SKU").fill("FR-PAST-ACCENT-BOSCH");
-    await page.getByLabel("Código de barras o SKU").press("Enter");
+    await page.getByLabel("Buscar producto o escanear código").fill("FR-PAST-ACCENT-BOSCH");
+    await page.getByLabel("Buscar producto o escanear código").press("Enter");
     await expect(page.getByTestId("cart-line")).toHaveCount(1, { timeout: 30_000 });
     await expect(page.getByTestId("pos-total")).toContainText("S/", { timeout: 30_000 });
 

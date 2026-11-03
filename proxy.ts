@@ -13,6 +13,10 @@ function contentSecurityPolicy(nonce: string): string {
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com",
     "frame-src https://challenges.cloudflare.com",
+    // El service worker (PWA) y el manifiesto son del propio origen. Con `strict-dynamic` el `script-src`
+    // no aplica a los workers, así que se declara aparte.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

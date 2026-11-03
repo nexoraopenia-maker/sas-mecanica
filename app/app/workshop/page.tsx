@@ -145,7 +145,7 @@ export default async function WorkshopPage({
                 multiple
                 accept="image/jpeg,image/png,image/webp"
                 capture="environment"
-                className="block w-full text-sm"
+                className="block min-h-11 w-full py-2 text-sm file:mr-3 file:min-h-9 file:rounded-lg file:border file:border-border file:bg-input file:px-3 file:text-foreground"
               />
               <p className="mt-1 text-xs text-muted-foreground">{t.evidenceNote}</p>
             </div>

@@ -52,6 +52,8 @@ export default defineConfig([
   {
     files: [
       "lib/db/**",
+      // Único puente permitido: solo reexporta Decimal (sin cliente ni adaptador) para el navegador.
+      "lib/decimal.ts",
       "prisma/**",
       "scripts/**",
       "tests/**",

@@ -42,7 +42,10 @@ export default async function DashboardPage() {
           {es.dashboard.greeting}, {user.name}
         </h1>
         {can(user, "reports:ver") ? (
-          <Link href="/app/reports" className="text-sm underline text-primary">
+          <Link
+            href="/app/reports"
+            className="inline-flex min-h-11 items-center text-sm text-primary underline"
+          >
             {t.reports}
           </Link>
         ) : null}

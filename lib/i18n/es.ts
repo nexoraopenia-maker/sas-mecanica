@@ -136,6 +136,41 @@ export const es = {
     users: "usuarios",
     name: "Nombre del rol",
   },
+  pwa: {
+    install: "Instalar app",
+    iosHint: "Para instalar: toca Compartir y luego «Agregar a pantalla de inicio».",
+  },
+  offline: {
+    queueTitle: "Ventas guardadas en este dispositivo",
+    syncNow: "Sincronizar ahora",
+    syncing: "Sincronizando…",
+    sale: "Venta",
+    items: "ítem(s)",
+    retry: "Reintentar",
+    discard: "Descartar",
+    discardConfirm:
+      "¿Descartar esta venta? Solo hazlo si ya la registraste de otra forma: no se podrá recuperar.",
+    authRequired:
+      "Tu sesión venció. Tus ventas siguen guardadas; ingresa de nuevo para sincronizarlas.",
+    signIn: "Ingresar",
+    offlineNote: "Sin conexión: tus ventas se enviarán solas cuando vuelva internet.",
+    status: {
+      PENDING: "Pendiente",
+      SYNCING: "Enviando",
+      FAILED: "Revisar",
+      SYNCED: "Sincronizada",
+    },
+    badgeOffline: "Sin conexión",
+    badgeOfflinePending: (n: number) => `Sin conexión · ${n} pendiente(s)`,
+    badgePending: (n: number) => `${n} venta(s) por sincronizar`,
+    badgeFailed: (n: number) => `${n} venta(s) por revisar`,
+    logoutConfirm: (n: number) =>
+      `Tienes ${n} venta(s) sin sincronizar. Se conservan en este dispositivo para tu usuario, pero hasta que vuelvas a ingresar con conexión no se registrarán. ¿Cerrar sesión de todos modos?`,
+    banner:
+      "Sin conexión. Puedes seguir vendiendo con boleta o nota de venta: se guardan en este dispositivo y se registran solas al volver internet.",
+    noSnapshot:
+      "Aún no hay catálogo guardado en este dispositivo: conéctate una vez para poder vender sin conexión.",
+  },
   settingsPage: {
     title: "Configuración",
     tabs: {
@@ -391,8 +426,19 @@ export const es = {
   },
   pos: {
     title: "Punto de venta",
-    scan: "Código de barras o SKU",
-    scanHelp: "Escanea o escribe y presiona Enter",
+    scan: "Buscar producto o escanear código",
+    scanHelp: "Nombre, SKU o código de barras",
+    added: "Agregado",
+    moreFilters: "Más filtros: medida de llanta, marca y modelo",
+    needsConnection: "requiere conexión",
+    saveOffline: "Guardar sin conexión",
+    savedOffline: (id: string, total: string) =>
+      `Venta ${id} guardada en este dispositivo (S/ ${total}). Se registrará y emitirá su comprobante cuando vuelva la conexión.`,
+    noStock: "Sin stock",
+    stock: "stock",
+    searching: "Buscando…",
+    suggestionsHint: "Elige con un clic o con las flechas",
+    offlineCatalog: "Sin conexión: catálogo guardado en este dispositivo",
     tireSize: "Medida de llanta",
     vehicle: "Vehículo (marca y modelo)",
     plateLookup: "Placa del cliente",

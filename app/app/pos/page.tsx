@@ -1,15 +1,18 @@
 import Link from "next/link";
+import { OfflineQueue } from "@/components/offline/offline-queue";
+import { PosOfflineBanner } from "@/components/offline/pos-offline-banner";
 import { PosTerminal } from "@/components/pos/pos-terminal";
 import { Card } from "@/components/ui/card";
 import { requirePermission } from "@/lib/auth/can";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { es } from "@/lib/i18n/es";
 import { getCurrentSession } from "@/server/services/cash";
+import { posTaxContext } from "@/server/services/pos-lookup";
 
 export default async function PosPage() {
   const user = await requireTenantUser();
   requirePermission(user, "pos:crear");
-  const session = await getCurrentSession(user);
+  const [session, tax] = await Promise.all([getCurrentSession(user), posTaxContext(user)]);
   const t = es.pos;
 
   return (
@@ -22,8 +25,9 @@ export default async function PosPage() {
           </p>
         ) : null}
       </div>
+      <PosOfflineBanner />
       {session ? (
-        <PosTerminal />
+        <PosTerminal tax={tax} maxDiscountPercent={user.maxDiscountPercent} />
       ) : (
         <Card className="space-y-3">
           <p>{t.needCash}</p>
@@ -35,6 +39,7 @@ export default async function PosPage() {
           </Link>
         </Card>
       )}
+      <OfflineQueue />
     </>
   );
 }

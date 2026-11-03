@@ -11,6 +11,8 @@
   --foreground: oklch(0.97 0 0);
   --card: oklch(0.17 0.02 285 / 0.72);
   --input: oklch(0.17 0.02 285 / 0.72);
+  /* Superficie opaca para menús flotantes (sugerencias, desplegables): nada se transparenta debajo. */
+  --popover: oklch(0.2 0.025 285);
   --muted: oklch(0.24 0.03 285 / 0.7);
   --muted-foreground: oklch(0.76 0.02 285);
   --border: oklch(1 0 0 / 0.12);
@@ -36,6 +38,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-input: var(--input);
+  --color-popover: var(--popover);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
@@ -55,6 +58,32 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Pantallas con muesca o barra de gestos (PWA instalada): el contenido respeta los márgenes seguros. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  /* Sin el resaltado gris al tocar y sin la espera del doble toque: el botón responde al instante. */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+summary,
+select,
+input,
+[role="button"],
+[role="option"] {
+  touch-action: manipulation;
+}
+
+/* Evita el zoom automático de iOS al enfocar un campo (exige 16 px mínimo). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Resplandores: una sola capa fija (no se repinta al desplazarse) y sin eventos. */
@@ -89,6 +118,7 @@ body::before {
     --foreground: #111827;
     --card: #ffffff;
     --input: #ffffff;
+    --popover: #ffffff;
     --muted: #f4f4f5;
     --muted-foreground: #52525b;
     --border: #d4d4d8;

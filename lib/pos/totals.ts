@@ -1,4 +1,5 @@
-import { Prisma } from "@/lib/db";
+// Aritmética decimal también disponible en el navegador (el mostrador calcula totales sin conexión).
+import { Decimal } from "@/lib/decimal";
 
 export type Affectation = "TAXED" | "EXEMPT" | "UNAFFECTED";
 
@@ -41,9 +42,8 @@ export interface TaxContext {
   pricesIncludeTax: boolean;
 }
 
-const D = (value: string | number | Prisma.Decimal): Prisma.Decimal => new Prisma.Decimal(value);
-const r2 = (value: Prisma.Decimal): Prisma.Decimal =>
-  value.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+const D = (value: string | number | Decimal): Decimal => new Decimal(value);
+const r2 = (value: Decimal): Decimal => value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
 /** Calcula una línea. Todo en Decimal: nunca se usa coma flotante con dinero. */
 export function computeLine(line: PricedLine, ctx: TaxContext): ComputedLine {
@@ -55,9 +55,9 @@ export function computeLine(line: PricedLine, ctx: TaxContext): ComputedLine {
   const taxed = line.affectation === "TAXED";
   const net = gross.minus(discount);
 
-  let base: Prisma.Decimal;
-  let tax: Prisma.Decimal;
-  let total: Prisma.Decimal;
+  let base: Decimal;
+  let tax: Decimal;
+  let total: Decimal;
   if (ctx.pricesIncludeTax || !taxed) {
     total = r2(net);
     base = taxed ? r2(total.div(rate.plus(1))) : total;
@@ -114,7 +114,7 @@ export function computeSale(
 
 /** Reparte un monto entre partes proporcionales a `weights`; el resto de céntimos va a la última. */
 export function allocate(amount: string, weights: Array<string | number>): string[] {
-  const total = weights.reduce<Prisma.Decimal>((sum, w) => sum.plus(w), D(0));
+  const total = weights.reduce<Decimal>((sum, w) => sum.plus(w), D(0));
   if (weights.length === 0) return [];
   if (total.isZero()) throw new RangeError("No hay con qué repartir");
   const shares: string[] = [];

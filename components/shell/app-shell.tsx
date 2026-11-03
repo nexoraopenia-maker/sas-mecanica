@@ -30,6 +30,11 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { Logo } from "@/components/brand/logo";
+import { useOffline } from "@/components/offline/offline-provider";
+import { SyncBadge } from "@/components/offline/sync-badge";
+import { InstallButton } from "@/components/pwa/install-button";
+import { clearPrivateCaches } from "@/components/pwa/pwa-register";
+import { clearSnapshot } from "@/lib/offline/idb";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { es } from "@/lib/i18n/es";
 import { cn } from "@/lib/utils";
@@ -95,6 +100,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const offline = useOffline();
   // El cajón queda abierto solo en la ruta donde se abrió: al navegar se cierra sin efectos.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === pathname;
@@ -128,7 +134,7 @@ export function AppShell({
       <aside
         id="menu-lateral"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card backdrop-blur-[14px] transition-[transform,visibility] duration-200 motion-reduce:transition-none print:hidden lg:visible lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col pt-[env(safe-area-inset-top)] border-r border-border bg-card backdrop-blur-[14px] transition-[transform,visibility] duration-200 motion-reduce:transition-none print:hidden lg:visible lg:translate-x-0",
           open ? "visible translate-x-0" : "invisible -translate-x-full",
         )}
       >
@@ -189,12 +195,26 @@ export function AppShell({
               {settings.label}
             </Link>
           ) : null}
+          <InstallButton />
           <div className="flex items-center justify-between gap-2 px-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
             </div>
-            <form action={logoutAction}>
+            <form
+              action={logoutAction}
+              onSubmit={(event) => {
+                const waiting =
+                  offline.counts.pending + offline.counts.syncing + offline.counts.failed;
+                if (waiting > 0 && !window.confirm(es.offline.logoutConfirm(waiting))) {
+                  event.preventDefault();
+                  return;
+                }
+                // Al salir se borran las páginas y el catálogo guardados; las ventas pendientes se conservan.
+                void clearPrivateCaches();
+                void clearSnapshot().catch(() => undefined);
+              }}
+            >
               <Button type="submit" variant="ghost" size="sm">
                 <LogOut aria-hidden />
                 {es.auth.logout}
@@ -205,7 +225,7 @@ export function AppShell({
       </aside>
 
       <div className="print:hidden">{banners}</div>
-      <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-card px-4 backdrop-blur-[14px] print:hidden">
+      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 pt-[env(safe-area-inset-top)] border-b border-border bg-card px-4 backdrop-blur-[14px] print:hidden">
         <Button
           type="button"
           variant="ghost"
@@ -221,6 +241,7 @@ export function AppShell({
         <p className="min-w-0 flex-1 truncate text-lg font-semibold">
           {current?.label ?? user.tenantName}
         </p>
+        <SyncBadge />
         {settings ? (
           <Link
             href={settings.href}

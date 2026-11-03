@@ -1,4 +1,4 @@
-import { isValidRuc } from "@/lib/workshop/documents";
+import { documentError, isValidRuc } from "@/lib/workshop/documents";
 import type { Affectation } from "@/lib/pos/totals";
 
 export type FiscalType = "BOLETA" | "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO";
@@ -57,9 +57,20 @@ export type Buyer = {
   address?: string | null;
 };
 
+/** Tasa vigente del IGV en el Perú (16 % de IGV + 2 % de IPM). Los comprobantes electrónicos la exigen. */
+export const IGV_RATE = 0.18;
+
+/** Prefijos de RUC que pueden recibir una factura: 10 (persona natural con negocio) y 20 (persona jurídica). */
+const FACTURABLE_RUC_PREFIX = /^(10|20)/;
+
 /**
  * Reglas de emisión que SUNAT rechazaría. Se validan ANTES de crear el comprobante para que el
  * cajero lo corrija en el mostrador, no que lo descubra un rechazo horas después.
+ *
+ * - Factura: comprador con RUC (11 dígitos, dígito verificador y prefijo 10 o 20) y razón social.
+ *   Que el RUC esté activo y habido solo lo puede confirmar SUNAT (el OSE rechaza el comprobante si no).
+ * - Boleta: hasta S/ 700 puede ser anónima; por encima exige identificar al comprador con un documento
+ *   válido (DNI, carné de extranjería, pasaporte o RUC). Si se identifica, el documento debe ser válido.
  */
 export function validateIssuance(
   type: "BOLETA" | "FACTURA",
@@ -69,17 +80,49 @@ export function validateIssuance(
   if (type === "FACTURA") {
     if (!buyer || buyer.docType !== "RUC") return "La factura exige un cliente con RUC";
     if (!isValidRuc(buyer.docNumber)) return "El RUC del cliente no es válido";
+    if (!FACTURABLE_RUC_PREFIX.test(buyer.docNumber))
+      return "El RUC debe empezar con 10 o 20 para emitir una factura";
     if (buyer.name.trim().length < 2) return "La factura exige la razón social del cliente";
     return null;
   }
   if (!buyer) {
     return total > ANONYMOUS_BOLETA_LIMIT
-      ? `Una boleta mayor a S/ ${ANONYMOUS_BOLETA_LIMIT} exige identificar al cliente`
+      ? `Una boleta mayor a S/ ${ANONYMOUS_BOLETA_LIMIT} exige identificar al cliente (DNI, carné de extranjería o pasaporte)`
       : null;
   }
-  if (buyer.docType === "DNI" && !/^\d{8}$/.test(buyer.docNumber)) return "DNI inválido";
+  if (total > ANONYMOUS_BOLETA_LIMIT && buyer.docType === "OTHER")
+    return `Una boleta mayor a S/ ${ANONYMOUS_BOLETA_LIMIT} exige DNI, carné de extranjería, pasaporte o RUC del cliente`;
+  const problem = documentError(buyer.docType, buyer.docNumber);
+  if (problem) return problem;
   if (buyer.docType === "RUC" && !isValidRuc(buyer.docNumber)) return "RUC inválido";
   return null;
+}
+
+/**
+ * El IGV de un comprobante electrónico es 18 %. Si la empresa lo configuró distinto, no se emite: el OSE
+ * lo rechazaría. Con cero operaciones gravadas (todo exonerado/inafecto) la tasa no interviene.
+ */
+export function validateIgvRate(
+  taxRate: string | number,
+  taxedBase: string | number,
+): string | null {
+  if (Number(taxedBase) <= 0) return null;
+  return Math.abs(Number(taxRate) - IGV_RATE) < 1e-9
+    ? null
+    : `La tasa de IGV configurada (${(Number(taxRate) * 100).toFixed(2)} %) no es la vigente (18 %). Corrígela en Configuración antes de emitir comprobantes`;
+}
+
+/** Serie y tipo deben coincidir: B### para boletas, F### para facturas; las notas siguen la serie del comprobante que modifican. */
+export function seriesMatchesType(
+  type: FiscalType,
+  series: string,
+  relatedType?: FiscalType | null,
+): boolean {
+  const first = series.charAt(0);
+  if (type === "BOLETA") return /^B\d{3}$/.test(series);
+  if (type === "FACTURA") return /^F\d{3}$/.test(series);
+  if (!relatedType) return first === "B" || first === "F";
+  return first === (relatedType === "FACTURA" ? "F" : "B");
 }
 
 /** Cadena del QR del comprobante (formato SUNAT: RUC|tipo|serie|correlativo|IGV|total|fecha|tipoDoc|doc|). */

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050508" />
+    <title>Sin conexión · Mecania</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        color: #f4f4f5;
+        background-color: #050508;
+        background-image:
+          radial-gradient(60rem 40rem at 12% -10%, rgb(0 245 255 / 0.22), transparent 60%),
+          radial-gradient(55rem 40rem at 100% 105%, rgb(191 90 242 / 0.26), transparent 60%);
+      }
+      main {
+        max-width: 28rem;
+        width: 100%;
+        text-align: center;
+        padding: 28px 24px;
+        border: 1px solid rgb(255 255 255 / 0.12);
+        border-radius: 14px;
+        background: rgb(23 21 33 / 0.8);
+        box-shadow: 0 20px 60px -20px rgb(191 90 242 / 0.35);
+      }
+      img {
+        width: 220px;
+        max-width: 70%;
+        height: auto;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 12px 0 8px;
+      }
+      p {
+        color: #b8b5c7;
+        line-height: 1.5;
+        margin: 0 0 16px;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 20px;
+        border-radius: 10px;
+        background: #00f5ff;
+        color: #050508;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a:focus-visible {
+        outline: 3px solid #bf5af2;
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/aima-logo.png" alt="AIMA Automatizaciones" width="1536" height="480" />
+      <h1>Sin conexión</h1>
+      <p>
+        No pudimos conectar con el servidor. Si ya abriste el punto de venta en este dispositivo,
+        puedes seguir vendiendo con boleta o nota de venta: las ventas se guardan aquí y se envían
+        solas al volver internet.
+      </p>
+      <a href="/app/pos">Abrir el punto de venta</a>
+    </main>
+  </body>
+</html>
