@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { goNav } from "./helpers";
 
 test.beforeEach(async ({ context }) => {
   const octet = () => Math.floor(Math.random() * 250);
@@ -22,7 +23,7 @@ test.describe("catálogo e inventario (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Inventario" }).click();
+    await goNav(page, "Inventario");
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
     await expect(page.getByTestId("count-CRITICAL")).toHaveText("5");
     // Reorden: ATF, filtro de combustible y las baterías con 5 unidades (reorden = 5).

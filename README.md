@@ -197,6 +197,10 @@ Stack de producción: **Vercel** (app Next.js) · **Supabase** (PostgreSQL + Sto
 
 ### 2. Servicios externos
 
+> **WhatsApp comercial:** define `NEXT_PUBLIC_SALES_WHATSAPP` (p. ej. `51987654321`) para que el botón **Activar plan** de las cuentas demo abra WhatsApp con el mensaje «Hola, quiero activar el plan para mi taller (cuenta demo: …)». Sin la variable, el botón lleva a `/app/subscription`.
+>
+> **Turnstile en Vercel:** en Cloudflare → Turnstile crea un widget **Managed** con tu dominio (`tu-app.vercel.app`) y copia la _Site key_ y la _Secret key_ reales. En Vercel → Settings → Environment Variables (entorno **Production**) define `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Site key) y `TURNSTILE_SECRET_KEY` (Secret key) y **vuelve a desplegar** (la clave pública se incrusta al compilar). Si el widget dice «Solo para pruebas», sigues usando las claves de prueba de Cloudflare.
+
 | Servicio                                               | Qué hacer                                                              | Variables                                                                               |
 | ------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | **Cloudflare Turnstile**                               | Crea un widget para tu dominio                                         | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`                                |

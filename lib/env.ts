@@ -40,6 +40,8 @@ export const envSchema = z
     BILLING_SIMULATED_SECRET: z.string().min(16).optional(),
     // 2FA obligatorio del SuperAdmin (true por defecto). Apagarlo es una decisión temporal del dueño: ver README.
     SUPERADMIN_REQUIRE_2FA: z.enum(["true", "false"]).default("true"),
+    /** WhatsApp comercial para «Activar plan» en cuentas demo (opcional; con código de país). */
+    NEXT_PUBLIC_SALES_WHATSAPP: z.string().optional(),
     BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(30).default(7),
     /** Días entre cobros automáticos fallidos, separados por comas (p. ej. «1,3,5»). */
     BILLING_RETRY_DAYS: z

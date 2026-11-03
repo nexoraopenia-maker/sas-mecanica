@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { goNav } from "./helpers";
 import { signWebhook } from "@/lib/security/webhook-signature";
 
 test.beforeEach(async ({ context }) => {
@@ -26,7 +27,7 @@ test.describe("agente IA de compras (demo)", () => {
     await enterDemo(page);
 
     // 1) Agente: propuestas controladas (sin OpenAI) en la bandeja.
-    await page.getByRole("link", { name: "Agente IA" }).click();
+    await goNav(page, "Agente IA");
     await expect(
       page.getByRole("heading", { name: "Agente IA de compras", level: 1 }),
     ).toBeVisible();
@@ -52,7 +53,7 @@ test.describe("agente IA de compras (demo)", () => {
     ).toBeVisible({ timeout: 30_000 });
 
     // 3) La orden aparece en Compras como Solicitada y del Agente IA.
-    await page.getByRole("link", { name: "Compras" }).click();
+    await goNav(page, "Compras");
     const order = page.getByTestId("order").first();
     await expect(order.getByTestId("order-status")).toHaveText("Solicitado");
     await expect(order).toContainText("Agente IA");
@@ -61,7 +62,7 @@ test.describe("agente IA de compras (demo)", () => {
     expect(number).toBeTruthy();
 
     // 4) Configurar el webhook entrante: el secreto se muestra una sola vez.
-    await page.getByRole("link", { name: "Configuración" }).click();
+    await goNav(page, "Configuración");
     await page.getByLabel("Generar nuevo secreto para webhooks entrantes").check();
     await page.getByRole("button", { name: "Guardar", exact: true }).last().click();
     const notice = await page.getByText(/Secreto para webhooks entrantes/).innerText();
@@ -101,7 +102,7 @@ test.describe("agente IA de compras (demo)", () => {
     expect(signed.status()).toBe(200);
     expect(await signed.json()).toEqual({ ok: true });
 
-    await page.getByRole("link", { name: "Compras" }).click();
+    await goNav(page, "Compras");
     await expect(
       page
         .getByTestId("order")
@@ -115,7 +116,7 @@ test.describe("agente IA de compras (demo)", () => {
   }) => {
     await enterDemo(page);
     const apiKey = `sk-e2e-${randomUUID().replace(/-/g, "")}`;
-    await page.getByRole("link", { name: "Configuración" }).click();
+    await goNav(page, "Configuración");
     await page.getByLabel("Clave de OpenAI", { exact: true }).fill("clave-con-formato-invalido");
     await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
     await expect(page.getByText(/formato esperado/)).toBeVisible();
@@ -133,11 +134,11 @@ test.describe("agente IA de compras (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Configuración" }).click();
+    await goNav(page, "Configuración");
     await page.getByLabel("Modo").selectOption("AUTOMATIC");
     await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
     await expect(page.getByText("Configuración de IA guardada.")).toBeVisible();
-    await page.getByRole("link", { name: "Agente IA" }).click();
+    await goNav(page, "Agente IA");
     await page.getByRole("button", { name: "Ejecutar agente ahora" }).click();
     await expect(page.getByTestId("draft").first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("draft").first()).toContainText(

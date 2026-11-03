@@ -74,7 +74,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       </Card>
 
       {products === null ? (
-        <p role="alert" className="text-destructive">
+        <p role="alert" className="text-danger">
           {c.tireSizeHint}
         </p>
       ) : products.length === 0 ? (

@@ -38,7 +38,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           {es.admin.statuses[tenant.status]} · {tenant.plan.name}
         </p>
         {tenant.suspendedReason ? (
-          <p className="mt-1 text-sm text-destructive">{tenant.suspendedReason}</p>
+          <p className="mt-1 text-sm text-danger">{tenant.suspendedReason}</p>
         ) : null}
       </div>
       <Card>

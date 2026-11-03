@@ -40,7 +40,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                 {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(" ")} ·{" "}
                 {formatKm(vehicle.currentMileage)}
               </p>
-              <Link className="text-sm underline" href={`/app/vehicles/${vehicle.id}`}>
+              <Link className="text-sm underline text-primary" href={`/app/vehicles/${vehicle.id}`}>
                 {t.history}
               </Link>
             </li>
@@ -95,7 +95,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         <ul className="space-y-1 text-sm">
           {customer.orders.map((order) => (
             <li key={order.id}>
-              <Link className="underline" href={`/app/workshop/${order.id}`}>
+              <Link className="underline text-primary" href={`/app/workshop/${order.id}`}>
                 OT #{order.number}
               </Link>{" "}
               · {order.vehicle.plate} · {w.status[order.status]} · {formatDate(order.receivedAt)} ·{" "}

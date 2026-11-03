@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { goNav } from "./helpers";
 
 test.beforeEach(async ({ context }) => {
   const octet = () => Math.floor(Math.random() * 250);
@@ -35,7 +36,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
     playwright,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Reportes", exact: true }).click();
+    await goNav(page, "Reportes", { exact: true });
     await expect(page.getByTestId("report-link")).toHaveCount(9);
     await page.getByRole("link", { name: "Rotación de inventario" }).click();
     await expect(
@@ -70,7 +71,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
     playwright,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Reportes", exact: true }).click();
+    await goNav(page, "Reportes", { exact: true });
     await page.getByTestId("ple-link").click();
     await expect(
       page.getByRole("heading", { name: /Libros electrónicos/, level: 1 }),
@@ -119,7 +120,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Configuración", exact: true }).click();
+    await goNav(page, "Configuración", { exact: true });
     await page.getByLabel("Nombre comercial").fill("Taller Demo QA");
     await page.getByRole("button", { name: "Guardar datos" }).click();
     await expect(page.getByText("Datos de la empresa guardados.")).toBeVisible({ timeout: 30_000 });
@@ -144,7 +145,7 @@ test.describe("tablero, reportes, configuración y suscripción (demo)", () => {
 
   test("Suscripción: la cuenta demo muestra su estado y no ofrece pagar", async ({ page }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Suscripción", exact: true }).click();
+    await goNav(page, "Suscripción", { exact: true });
     await expect(page.getByTestId("subscription-card")).toBeVisible();
     await expect(page.getByText("Las cuentas demo no se cobran.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Pagar ahora" })).toHaveCount(0);
@@ -174,7 +175,7 @@ test.describe("flujo crítico: reclamo de garantía (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Garantías", exact: true }).click();
+    await goNav(page, "Garantías", { exact: true });
     await page.getByPlaceholder("Placa").fill("CDE789");
     await page.getByRole("button", { name: "Buscar" }).click();
     const warranty = page.getByTestId("warranty").first();

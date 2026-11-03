@@ -26,7 +26,7 @@ export function SignaturePad({
     if (!el || !ctx) return;
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
-    ctx.strokeStyle = "#111827";
+    ctx.strokeStyle = getComputedStyle(el).getPropertyValue("--ink").trim() || "currentColor";
     const point = (event: PointerEvent) => {
       const rect = el.getBoundingClientRect();
       return {
@@ -77,7 +77,7 @@ export function SignaturePad({
         ref={canvas}
         width={600}
         height={200}
-        className="h-40 w-full touch-none rounded-lg border border-border bg-white"
+        className="h-40 w-full touch-none rounded-lg border border-border bg-paper"
         data-testid="signature-canvas"
         aria-label={label}
       />

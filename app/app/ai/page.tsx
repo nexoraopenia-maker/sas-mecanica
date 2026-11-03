@@ -59,7 +59,7 @@ export default async function AiPage({
           · {settings.mode === "AUTOMATIC" ? es.settings.modeAuto : es.settings.modeDraft}
         </p>
         {usage.exhausted ? (
-          <p className="mt-2 text-sm font-medium text-destructive">
+          <p className="mt-2 text-sm font-medium text-danger">
             Presupuesto agotado: el agente está detenido.
           </p>
         ) : null}
@@ -89,7 +89,7 @@ export default async function AiPage({
               {draft.violations.length > 0 ? (
                 <div
                   role="alert"
-                  className="rounded-lg border border-yellow-400 bg-yellow-50 p-3 text-sm text-yellow-900"
+                  className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
                 >
                   <strong>{t.violations}</strong>
                   <ul className="list-disc pl-5">

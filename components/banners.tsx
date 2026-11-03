@@ -2,32 +2,36 @@ import Link from "next/link";
 import { endImpersonationAction } from "@/app/actions/admin";
 import { restoreDemoAction } from "@/app/actions/auth";
 import { ActionForm } from "@/components/forms/action-form";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { AuthUser } from "@/lib/auth/can";
+import { getEnv } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
+import { salesWhatsappUrl } from "@/lib/sales-whatsapp";
 
-/** Banners permanentes: modo soporte (impersonación) y cuenta demo. No se pueden ocultar. */
+const strip = "border-b px-4 py-3 text-sm backdrop-blur-[14px] print:hidden";
+const inner = "mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3";
+
+/** Banners permanentes: modo soporte (impersonación), cobro pendiente y cuenta demo. No se pueden ocultar. */
 export function Banners({ user }: { user: AuthUser }) {
+  const whatsapp = salesWhatsappUrl(
+    getEnv().NEXT_PUBLIC_SALES_WHATSAPP,
+    user.tenantName ?? es.app.name,
+  );
   return (
     <>
       {user.impersonation ? (
         <div
           role="alert"
-          className="bg-destructive px-4 py-3 text-sm text-white print:hidden"
+          className={`${strip} border-danger/40 bg-danger/10 text-danger`}
           data-testid="support-banner"
         >
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+          <div className={inner}>
             <p>
               <strong>{es.banner.support}</strong> · {user.tenantName} · {es.banner.supportReason}:{" "}
               {user.impersonation.reason}. {es.banner.supportNote}
             </p>
             <form action={endImpersonationAction}>
-              <Button
-                type="submit"
-                size="sm"
-                variant="outline"
-                className="border-white bg-transparent text-white hover:bg-white/20"
-              >
+              <Button type="submit" size="sm" variant="outline">
                 {es.banner.supportEnd}
               </Button>
             </form>
@@ -38,10 +42,10 @@ export function Banners({ user }: { user: AuthUser }) {
       (user.subscription?.status === "GRACE" || user.subscription?.status === "PAST_DUE") ? (
         <div
           role="alert"
-          className="bg-destructive px-4 py-3 text-sm text-white print:hidden"
+          className={`${strip} border-danger/40 bg-danger/10 text-danger`}
           data-testid="billing-banner"
         >
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+          <div className={inner}>
             <p>
               <strong>
                 {user.subscription.status === "GRACE"
@@ -54,7 +58,7 @@ export function Banners({ user }: { user: AuthUser }) {
             </p>
             <Link
               href="/app/subscription"
-              className="rounded-lg border border-white px-4 py-2 font-medium"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               {es.banner.billingPay}
             </Link>
@@ -63,23 +67,44 @@ export function Banners({ user }: { user: AuthUser }) {
       ) : null}
       {user.isDemo && !user.impersonation ? (
         <div
-          className="bg-primary px-4 py-3 text-sm text-primary-foreground print:hidden"
+          className={`${strip} border-primary/40 bg-primary/10 text-foreground`}
           data-testid="demo-banner"
         >
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+          <div className={inner}>
             <p>
               {es.banner.demo}
               {user.demoExpiresAt
                 ? ` ${es.banner.demoExpires}: ${user.demoExpiresAt.toLocaleString("es-PE", { timeZone: "America/Lima" })}.`
                 : ""}
             </p>
-            <ActionForm
-              action={restoreDemoAction}
-              submitLabel={es.banner.restore}
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-            />
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {whatsapp ? (
+                <a
+                  href={whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ size: "sm" })}
+                  data-testid="demo-activate"
+                >
+                  {es.banner.activatePlan}
+                </a>
+              ) : (
+                <Link
+                  href="/app/subscription"
+                  className={buttonVariants({ size: "sm" })}
+                  data-testid="demo-activate"
+                >
+                  {es.banner.activatePlan}
+                </Link>
+              )}
+              <ActionForm
+                action={restoreDemoAction}
+                submitLabel={es.banner.restore}
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+              />
+            </div>
           </div>
         </div>
       ) : null}

@@ -1,27 +1,55 @@
 @import "tailwindcss";
 
+/*
+ * Identidad visual AIMA (solo tema oscuro). Valores tomados de la pantalla de ingreso:
+ * base #050508, resplandores cian #00F5FF y morado #BF5AF2, tarjetas de vidrio.
+ * Los componentes usan SOLO estos tokens (ver tests/unit/design-tokens.test.ts).
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --border: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.2 255);
-  --primary: oklch(0.45 0.2 255);
-  --primary-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  color-scheme: dark;
+  --background: #050508;
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.17 0.02 285 / 0.72);
+  --input: oklch(0.17 0.02 285 / 0.72);
+  --muted: oklch(0.24 0.03 285 / 0.7);
+  --muted-foreground: oklch(0.76 0.02 285);
+  --border: oklch(1 0 0 / 0.12);
+  --ring: #00f5ff;
+  --primary: #00f5ff;
+  --primary-foreground: #050508;
+  --success: oklch(0.8 0.17 160);
+  --warning: oklch(0.83 0.16 80);
+  --danger: oklch(0.72 0.19 22);
+  --danger-foreground: #050508;
+  /* Papel e tinta: comprobantes y firmas que se imprimen o capturan sobre fondo blanco. */
+  --paper: #ffffff;
+  --ink: #111827;
+  /* Resplandores decorativos del fondo y halo de las tarjetas. */
+  --glow-cyan: 0 245 255;
+  --glow-violet: 191 90 242;
+  --shadow-glass:
+    0 0 0 1px rgb(var(--glow-cyan) / 0.08), 0 20px 60px -20px rgb(var(--glow-violet) / 0.35);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-input: var(--input);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-destructive: var(--danger);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --shadow-glass: var(--shadow-glass);
 }
 
 body {
@@ -29,32 +57,46 @@ body {
   color: var(--foreground);
 }
 
-/* Pantallas de acceso: tema oscuro de la marca (base #050508, acentos cian #00F5FF y morado #BF5AF2). */
-.auth-theme {
-  --background: oklch(0.17 0.02 285 / 0.72);
-  --foreground: oklch(0.97 0 0);
-  --muted: oklch(0.24 0.03 285 / 0.7);
-  --muted-foreground: oklch(0.76 0.02 285);
-  --border: oklch(1 0 0 / 0.12);
-  --ring: #00f5ff;
-  --primary: #00c8d6;
-  --primary-foreground: #050508;
-  --destructive: oklch(0.72 0.19 22);
-  color: var(--foreground);
-  background-color: #050508;
+/* Resplandores: una sola capa fija (no se repinta al desplazarse) y sin eventos. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
-    radial-gradient(60rem 40rem at 12% -10%, rgb(0 245 255 / 0.22), transparent 60%),
-    radial-gradient(55rem 40rem at 100% 105%, rgb(191 90 242 / 0.26), transparent 60%),
-    radial-gradient(30rem 20rem at 50% 45%, rgb(0 245 255 / 0.05), transparent 70%);
+    radial-gradient(60rem 40rem at 12% -10%, rgb(var(--glow-cyan) / 0.22), transparent 60%),
+    radial-gradient(55rem 40rem at 100% 105%, rgb(var(--glow-violet) / 0.26), transparent 60%),
+    radial-gradient(30rem 20rem at 50% 45%, rgb(var(--glow-cyan) / 0.05), transparent 70%);
 }
 
-.auth-theme section {
-  backdrop-filter: blur(14px);
-  box-shadow:
-    0 0 0 1px rgb(0 245 255 / 0.08),
-    0 20px 60px -20px rgb(191 90 242 / 0.35);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.auth-theme .text-green-800 {
-  color: oklch(0.86 0.14 160);
+/* Impresión: todo vuelve a papel blanco y tinta (reportes, tickets, PLE). */
+@media print {
+  :root {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #111827;
+    --card: #ffffff;
+    --input: #ffffff;
+    --muted: #f4f4f5;
+    --muted-foreground: #52525b;
+    --border: #d4d4d8;
+    --primary: #0e7490;
+    --primary-foreground: #ffffff;
+    --shadow-glass: none;
+  }
+  body::before {
+    display: none;
+  }
 }

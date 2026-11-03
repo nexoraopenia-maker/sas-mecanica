@@ -37,12 +37,12 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         <p className="text-sm">
           {t.convertedTo}:{" "}
           {quote.sales.map((s) => (
-            <Link key={s.id} className="mr-2 underline" href={`/app/sales/${s.id}`}>
+            <Link key={s.id} className="mr-2 underline text-primary" href={`/app/sales/${s.id}`}>
               Venta #{s.number}
             </Link>
           ))}
           {quote.workOrders.map((o) => (
-            <Link key={o.id} className="mr-2 underline" href={`/app/workshop/${o.id}`}>
+            <Link key={o.id} className="mr-2 underline text-primary" href={`/app/workshop/${o.id}`}>
               OT #{o.number}
             </Link>
           ))}
@@ -131,7 +131,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                     id={`serials_${i.id}`}
                     name={`serials_${i.id}`}
                     rows={2}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2"
                   />
                 </div>
               ))}

@@ -94,7 +94,7 @@ export default async function WorkOrderPage({
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
-        <Link className="underline" href={`/app/vehicles/${order.vehicle.id}`}>
+        <Link className="underline text-primary" href={`/app/vehicles/${order.vehicle.id}`}>
           {[order.vehicle.make, order.vehicle.model].filter(Boolean).join(" ") ||
             order.vehicle.plate}
         </Link>{" "}
@@ -447,7 +447,7 @@ export default async function WorkOrderPage({
             <div className="space-y-1 text-sm">
               <p>
                 {order.sale.isCredit ? es.pos.billedCredit : es.pos.billedCash}{" "}
-                <Link className="underline" href={`/app/sales/${order.sale.id}`}>
+                <Link className="underline text-primary" href={`/app/sales/${order.sale.id}`}>
                   venta #{order.sale.number}
                 </Link>{" "}
                 · {formatMoney(order.sale.total)}
@@ -456,7 +456,7 @@ export default async function WorkOrderPage({
                 <p data-testid="wo-credit-status">
                   {es.pos.balance}: {formatMoney(order.sale.balance ?? 0)} ·{" "}
                   {es.receivables.dueDate} {formatDate(order.sale.dueDate)} ·{" "}
-                  <Link className="underline" href="/app/receivables">
+                  <Link className="underline text-primary" href="/app/receivables">
                     {es.receivables.title}
                   </Link>
                 </p>

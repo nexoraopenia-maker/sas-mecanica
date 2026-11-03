@@ -54,8 +54,8 @@ export default async function PrintPage({
     <div
       className={
         ticket
-          ? "mx-auto w-[80mm] bg-white p-2 text-[11px] leading-tight text-black print:p-0"
-          : "mx-auto max-w-[210mm] bg-white p-8 text-sm text-black print:p-0"
+          ? "mx-auto w-[80mm] bg-paper p-2 text-[11px] leading-tight text-ink print:p-0"
+          : "mx-auto max-w-[210mm] bg-paper p-8 text-sm text-ink print:p-0"
       }
       data-testid="print-sheet"
     >
@@ -86,7 +86,7 @@ export default async function PrintPage({
         {sale.customer?.docNumber ? `(${sale.customer.docType} ${sale.customer.docNumber})` : ""}
       </p>
       {sale.vehicle ? <p>Placa: {sale.vehicle.plate}</p> : null}
-      <table className="mt-2 w-full border-t border-black">
+      <table className="mt-2 w-full border-t border-ink">
         <thead>
           <tr className="text-left">
             <th>Cant.</th>
@@ -108,7 +108,7 @@ export default async function PrintPage({
           ))}
         </tbody>
       </table>
-      <dl className="mt-2 grid grid-cols-2 border-t border-black pt-1">
+      <dl className="mt-2 grid grid-cols-2 border-t border-ink pt-1">
         <dt>Op. gravada</dt>
         <dd className="text-right">S/ {sale.subtotal}</dd>
         <dt>{t.tax}</dt>

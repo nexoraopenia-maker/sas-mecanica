@@ -100,12 +100,12 @@ export default async function PlePage({
                 <p className="text-sm text-muted-foreground">{t.noRows}</p>
               ) : null}
               {preview.sales.excludedPending > 0 ? (
-                <p className="text-sm text-amber-700" data-testid="ple-excluded-pending">
+                <p className="text-sm text-warning" data-testid="ple-excluded-pending">
                   {preview.sales.excludedPending} {t.excludedPending}
                 </p>
               ) : null}
               {preview.sales.excludedRejected > 0 ? (
-                <p className="text-sm text-amber-700" data-testid="ple-excluded-rejected">
+                <p className="text-sm text-warning" data-testid="ple-excluded-rejected">
                   {preview.sales.excludedRejected} {t.excludedRejected}
                 </p>
               ) : null}

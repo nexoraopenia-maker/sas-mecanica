@@ -8,8 +8,8 @@ export function Alert({
 }: React.ComponentProps<"div"> & { tone?: "info" | "error" | "success" }) {
   const tones = {
     info: "border-border bg-muted",
-    error: "border-destructive/40 bg-destructive/10 text-destructive",
-    success: "border-green-600/30 bg-green-600/10 text-green-800",
+    error: "border-danger/40 bg-danger/10 text-danger",
+    success: "border-success/30 bg-success/10 text-success",
   } as const;
   return (
     <div

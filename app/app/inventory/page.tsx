@@ -22,9 +22,9 @@ import {
 } from "@/server/services/stock-queries";
 
 const STATUS_STYLE: Record<StockStatus, string> = {
-  CRITICAL: "bg-red-100 text-red-900 border-red-300",
-  REORDER: "bg-yellow-100 text-yellow-900 border-yellow-300",
-  OPTIMAL: "bg-green-100 text-green-900 border-green-300",
+  CRITICAL: "bg-danger/15 text-danger border-danger/40",
+  REORDER: "bg-warning/15 text-warning border-warning/40",
+  OPTIMAL: "bg-success/15 text-success border-success/40",
 };
 const DOT: Record<StockStatus, string> = { CRITICAL: "🔴", REORDER: "🟡", OPTIMAL: "🟢" };
 
@@ -192,7 +192,7 @@ export default async function InventoryPage() {
                 id="in-serials"
                 name="serials"
                 rows={3}
-                className="w-full rounded-lg border border-border bg-background p-3 text-base"
+                className="w-full rounded-lg border border-border bg-input p-3 text-base"
               />
             </div>
           </ActionForm>

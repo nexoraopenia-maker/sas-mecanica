@@ -52,7 +52,7 @@ export default async function SubscriptionPage({
           </p>
         ) : null}
         {view.graceEndsAt ? (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-danger">
             {t.graceUntil} {formatDate(view.graceEndsAt)} ({view.graceDaysLeft} {t.daysLeft})
           </p>
         ) : null}

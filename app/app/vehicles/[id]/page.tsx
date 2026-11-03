@@ -29,7 +29,7 @@ export default async function VehiclePage({ params }: { params: Promise<{ id: st
         <p className="text-sm">
           {t.openOrders}:{" "}
           {history.openWorkOrders.map((o) => (
-            <Link key={o.id} className="mr-2 underline" href={`/app/workshop/${o.id}`}>
+            <Link key={o.id} className="mr-2 underline text-primary" href={`/app/workshop/${o.id}`}>
               OT #{o.number}
             </Link>
           ))}

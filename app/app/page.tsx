@@ -21,7 +21,7 @@ function Stat({
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd
-        className={`text-2xl font-semibold ${tone === "danger" ? "text-destructive" : tone === "warning" ? "text-amber-600" : ""}`}
+        className={`text-2xl font-semibold ${tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : ""}`}
         data-testid={testId}
       >
         {value}
@@ -42,7 +42,7 @@ export default async function DashboardPage() {
           {es.dashboard.greeting}, {user.name}
         </h1>
         {can(user, "reports:ver") ? (
-          <Link href="/app/reports" className="text-sm underline">
+          <Link href="/app/reports" className="text-sm underline text-primary">
             {t.reports}
           </Link>
         ) : null}
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         {data.stock ? (
           <Card
             data-testid="dash-stock"
-            className={data.stock.critical > 0 ? "border-destructive/60" : ""}
+            className={data.stock.critical > 0 ? "border-danger/60" : ""}
           >
             <CardTitle>{t.stock}</CardTitle>
             <dl className="grid grid-cols-2 gap-3">
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
             ) : null}
             <ul className="mt-3 space-y-1 text-sm">
               {data.stock.criticalItems.map((item) => (
-                <li key={`${item.productId}-${item.warehouse}`} className="text-destructive">
+                <li key={`${item.productId}-${item.warehouse}`} className="text-danger">
                   {item.name} · {item.quantity} / mín. {item.minStock}
                 </li>
               ))}
@@ -94,10 +94,10 @@ export default async function DashboardPage() {
               <Stat label={t.month} value={`S/ ${data.sales.monthTotal}`} />
             </dl>
             {data.receivables && data.receivables.overdueCount > 0 ? (
-              <p className="mt-3 text-sm text-destructive">
+              <p className="mt-3 text-sm text-danger">
                 {t.receivables}: {data.receivables.overdueCount} · S/{" "}
                 {data.receivables.overdueTotal} ·{" "}
-                <Link className="underline" href="/app/receivables">
+                <Link className="underline text-primary" href="/app/receivables">
                   {es.receivables.title}
                 </Link>
               </p>

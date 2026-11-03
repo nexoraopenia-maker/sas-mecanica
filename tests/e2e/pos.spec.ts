@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { goNav } from "./helpers";
 
 test.beforeEach(async ({ context }) => {
   const octet = () => Math.floor(Math.random() * 250);
@@ -17,7 +18,7 @@ async function enterDemo(page: Page) {
 }
 
 async function openCash(page: Page, amount = "100") {
-  await page.getByRole("link", { name: "Caja", exact: true }).click();
+  await goNav(page, "Caja", { exact: true });
   await page.getByLabel("Efectivo inicial").fill(amount);
   await page.getByRole("button", { name: "Abrir caja" }).click();
   await expect(page).toHaveURL(/\/app\/pos$/, { timeout: 30_000 });
@@ -28,7 +29,7 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
     page,
   }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Vender", exact: true }).click();
+    await goNav(page, "Vender", { exact: true });
     await expect(page.getByText("Abre tu caja para empezar a vender.")).toBeVisible();
     await openCash(page, "100");
 
@@ -55,7 +56,7 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
     await expect(page.getByTestId("print-sheet")).toContainText("SON:");
 
     // La caja suma la venta y el cierre cuadra sin diferencia.
-    await page.getByRole("link", { name: "Caja", exact: true }).click();
+    await goNav(page, "Caja", { exact: true });
     const expected = Number(total) + 100;
     await expect(page.getByTestId("cash-expected")).toContainText(expected.toFixed(2));
     await page.getByLabel("Efectivo · Contado").fill(expected.toFixed(2));
@@ -69,7 +70,7 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
   test("convierte la cotización de la demo en venta y la anula con motivo", async ({ page }) => {
     await enterDemo(page);
     await openCash(page, "50");
-    await page.getByRole("link", { name: "Cotizaciones", exact: true }).click();
+    await goNav(page, "Cotizaciones", { exact: true });
     await page.getByTestId("quote").first().click();
     await expect(page.getByTestId("quote-status")).toHaveText("Enviada");
     await page.getByRole("button", { name: "Convertir en venta" }).click();
@@ -82,7 +83,7 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
     await expect(page.getByTestId("sale-status")).toHaveText("Anulada");
     await expect(page.getByTestId("sale-document").last()).toContainText("Nota de crédito");
 
-    await page.getByRole("link", { name: "Cotizaciones", exact: true }).click();
+    await goNav(page, "Cotizaciones", { exact: true });
     await expect(page.getByTestId("quote").first()).toContainText("Convertida");
   });
 
@@ -105,7 +106,7 @@ test.describe("punto de venta, caja y facturación (demo)", () => {
     await expect(page).toHaveURL(/\/app\/sales\/[0-9a-f-]+\?nueva=1/, { timeout: 30_000 });
     await expect(page.getByTestId("sale-status")).toHaveText("Sin pagar");
 
-    await page.getByRole("link", { name: "Por cobrar", exact: true }).first().click();
+    await goNav(page, "Por cobrar", { exact: true });
     const debt = page.getByTestId("receivable").first();
     await expect(debt).toContainText("Carlos Mendoza");
     // Plazo de 15 días: la deuda está a tiempo (verde) y la empresa figura en el resumen.

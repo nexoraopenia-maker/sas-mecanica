@@ -56,7 +56,7 @@ export default async function SalePage({
           <>
             {" "}
             ·{" "}
-            <Link className="underline" href={`/app/workshop/${sale.workOrderId}`}>
+            <Link className="underline text-primary" href={`/app/workshop/${sale.workOrderId}`}>
               OT
             </Link>
           </>
@@ -107,20 +107,24 @@ export default async function SalePage({
           <p className="text-sm">
             {t.balance}: S/ {sale.receivable.balance} · {es.receivables.dueDate}{" "}
             {formatDateTime(sale.receivable.dueDate)} ·{" "}
-            <Link className="underline" href="/app/receivables">
+            <Link className="underline text-primary" href="/app/receivables">
               {es.receivables.title}
             </Link>
           </p>
         ) : null}
         <div className="flex flex-wrap gap-3 text-sm">
           <Link
-            className="underline"
+            className="underline text-primary"
             href={`/app/sales/${id}/print?formato=ticket`}
             target="_blank"
           >
             {t.print} · {t.ticket}
           </Link>
-          <Link className="underline" href={`/app/sales/${id}/print?formato=a4`} target="_blank">
+          <Link
+            className="underline text-primary"
+            href={`/app/sales/${id}/print?formato=a4`}
+            target="_blank"
+          >
             {t.print} · {t.a4}
           </Link>
         </div>

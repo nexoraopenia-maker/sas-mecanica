@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { goNav } from "./helpers";
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -34,7 +35,7 @@ test.describe("taller (demo)", () => {
     await enterDemo(page);
 
     // 1) Recepción digital con cliente nuevo.
-    await page.getByRole("link", { name: "Taller" }).click();
+    await goNav(page, "Taller");
     await expect(page.getByRole("heading", { name: "Taller", level: 1 })).toBeVisible();
     await expect(page.getByTestId("work-order").first()).toBeVisible();
     await page.getByLabel("Placa", { exact: true }).fill(plate);
@@ -114,13 +115,13 @@ test.describe("taller (demo)", () => {
 
   test("consulta rápida de garantías y clientes en la demo", async ({ page }) => {
     await enterDemo(page);
-    await page.getByRole("link", { name: "Garantías" }).click();
+    await goNav(page, "Garantías");
     await expect(page.getByRole("heading", { name: "Garantías", level: 1 })).toBeVisible();
     await page.getByPlaceholder("Placa").fill("CDE789");
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page.getByTestId("warranty").first()).toContainText("Mano de obra");
 
-    await page.getByRole("link", { name: "Clientes" }).click();
+    await goNav(page, "Clientes");
     await page.getByPlaceholder(/Buscar por nombre/).fill("Mendoza");
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page.getByTestId("customer").first()).toContainText("Carlos Mendoza");

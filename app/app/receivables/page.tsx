@@ -15,14 +15,14 @@ import { formatDate } from "@/lib/workshop/format";
 import { listReceivables } from "@/server/services/receivables";
 
 const LIGHT_STYLE: Record<Light, string> = {
-  GREEN: "bg-green-100 text-green-800",
-  AMBER: "bg-amber-100 text-amber-800",
-  RED: "bg-red-100 text-red-800",
+  GREEN: "bg-success/15 text-success",
+  AMBER: "bg-warning/15 text-warning",
+  RED: "bg-danger/15 text-danger",
 };
 const DOT: Record<Light, string> = {
-  GREEN: "bg-green-600",
-  AMBER: "bg-amber-500",
-  RED: "bg-red-600",
+  GREEN: "bg-success",
+  AMBER: "bg-warning",
+  RED: "bg-danger",
 };
 
 function LightBadge({ light, testId }: { light: Light; testId?: string }) {
@@ -127,7 +127,7 @@ export default async function ReceivablesPage({
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium">
                   {r.customer} ·{" "}
-                  <Link className="underline" href={`/app/sales/${r.saleId}`}>
+                  <Link className="underline text-primary" href={`/app/sales/${r.saleId}`}>
                     Venta #{r.saleNumber}
                   </Link>
                 </p>

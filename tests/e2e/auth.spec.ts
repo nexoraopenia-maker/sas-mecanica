@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { goNav, openMenu } from "./helpers";
 import { hashPassword } from "@/lib/auth/password";
 import { totpCode } from "@/lib/auth/totp";
 import { createClient } from "@/lib/db/raw.ts";
@@ -79,7 +80,7 @@ test.describe("cuenta demo", () => {
     await expect(page.getByRole("heading", { name: /Hola, Dueño Demo/ })).toBeVisible();
     expect(Number(await page.getByTestId("permission-count").innerText())).toBeGreaterThan(40);
 
-    await page.getByRole("link", { name: "Usuarios" }).click();
+    await goNav(page, "Usuarios");
     await expect(page.getByText("Mecánico Demo", { exact: true })).toBeVisible();
     await expect(page.getByText("Dueño Demo", { exact: true })).toBeVisible();
 
@@ -100,6 +101,7 @@ test.describe("cuenta demo", () => {
   test("cerrar sesión elimina el acceso", async ({ page }) => {
     await startDemo(page);
     await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
+    await openMenu(page);
     await page.getByRole("button", { name: "Salir" }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.goto("/app");

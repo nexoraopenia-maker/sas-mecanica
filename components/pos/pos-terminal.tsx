@@ -422,7 +422,7 @@ export function PosTerminal() {
                   </p>
                   <button
                     type="button"
-                    className="text-sm text-destructive underline"
+                    className="text-sm text-danger underline"
                     onClick={() => setCart((c) => c.filter((l) => l.key !== line.key))}
                   >
                     Quitar
@@ -460,7 +460,7 @@ export function PosTerminal() {
                     <textarea
                       id={`s-${line.key}`}
                       rows={2}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+                      className="w-full rounded-lg border border-border bg-input px-3 py-2 text-base"
                       value={line.serialsText}
                       onChange={(e) => updateLine(line.key, { serialsText: e.target.value })}
                     />
