@@ -42,6 +42,23 @@ export async function createProductAction(
       barcode: opt(formData, "barcode"),
       salePrice: field(formData, "salePrice") || "0",
       lastPurchaseCost: opt(formData, "lastPurchaseCost"),
+      minStock: opt(formData, "minStock"),
+      autoBarcode: formData.get("noAutoBarcode") !== "on",
+    };
+    // Compatibilidad con un vehículo (marca + modelo + año) y código OEM de cualquier tipo de producto.
+    const vehicle = {
+      make: opt(formData, "vehicleMake"),
+      model: opt(formData, "vehicleModel"),
+      yearFrom: opt(formData, "yearFrom"),
+      yearTo: opt(formData, "yearTo"),
+    };
+    const hasVehicle = Object.values(vehicle).some(Boolean);
+    if (hasVehicle && !(vehicle.make && vehicle.model))
+      return { error: "Para registrar la compatibilidad indica la marca y el modelo del vehículo" };
+    const oem = opt(formData, "oemCode");
+    const extras = {
+      ...(hasVehicle ? { compatibilities: [vehicle] } : {}),
+      ...(oem && kind !== "PART" ? { equivalences: [{ code: oem, type: "OEM" }] } : {}),
     };
     const detail: Record<string, unknown> =
       kind === "TIRE"
@@ -75,7 +92,7 @@ export async function createProductAction(
               : {};
     const product = await createProduct(
       actor,
-      { ...base, ...detail } as Parameters<typeof createProduct>[1],
+      { ...base, ...extras, ...detail } as Parameters<typeof createProduct>[1],
       await getRequestMeta(),
     );
     revalidatePath("/app/catalog");

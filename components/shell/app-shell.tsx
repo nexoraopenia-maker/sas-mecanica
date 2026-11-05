@@ -10,6 +10,7 @@ import {
   Boxes,
   CreditCard,
   FileCheck2,
+  FileOutput,
   HandCoins,
   KeyRound,
   LayoutDashboard,
@@ -55,6 +56,7 @@ const ICONS = {
   inventory: Boxes,
   purchasing: Truck,
   billing: FileCheck2,
+  dispatch: FileOutput,
   accounting: BookOpen,
   reports: BarChart3,
   subscription: CreditCard,
@@ -187,6 +189,7 @@ export function AppShell({
                         href={item.href}
                         className={linkClass(active)}
                         aria-current={active ? "page" : undefined}
+                        onClick={() => setOpen(false)}
                       >
                         <Icon className="size-5 shrink-0" aria-hidden />
                         {item.label}
@@ -204,6 +207,7 @@ export function AppShell({
               href={settings.href}
               className={linkClass(current?.href === settings.href)}
               aria-current={current?.href === settings.href ? "page" : undefined}
+              onClick={() => setOpen(false)}
             >
               <Settings className="size-5 shrink-0" aria-hidden />
               {settings.label}

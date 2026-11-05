@@ -76,6 +76,7 @@ const GROUPS: Array<{ label: string; items: Entry[] }> = [
     label: es.nav.groupFiscal,
     items: [
       { href: "/app/billing", label: es.nav.billing, icon: "billing", needs: ["billing:ver"] },
+      { href: "/app/guias", label: es.nav.guides, icon: "dispatch", needs: ["billing:ver"] },
       { href: "/app/reports", label: es.nav.reports, icon: "reports", needs: ["reports:ver"] },
       {
         href: "/app/reports/ple",

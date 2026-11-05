@@ -385,6 +385,20 @@ enum DocumentType {
   NOTA_VENTA
 }
 
+// Catálogo 20 de SUNAT (motivo de traslado) que soporta la GRE remitente.
+enum DispatchReason {
+  SALE
+  PURCHASE
+  TRANSFER_BETWEEN_ESTABLISHMENTS
+  OTHER
+}
+
+// Catálogo 18 de SUNAT: público (transportista con RUC) o privado (vehículo y conductor propios).
+enum DispatchTransportMode {
+  PUBLIC
+  PRIVATE
+}
+
 enum FiscalStatus {
   PENDING
   ACCEPTED
@@ -581,17 +595,17 @@ model TenantSettings {
   rotationWindowDays Int     @default(30)
 
   // IA
-  openaiApiKeyEncrypted String?
-  openaiApiKeyHint      String?
-  aiModel               String   @default("gpt-4o-mini")
-  aiTone                String?
-  aiMode                AiMode   @default(DRAFT_APPROVAL)
-  aiMonthlyTokenCap     Int?
-  aiMonthlyCostCapUsd   Decimal? @db.Decimal(12, 4)
-  aiMaxOrderAmount      Decimal? @db.Decimal(14, 2)
-  aiMaxQtyPerSku        Decimal? @db.Decimal(14, 4)
-  aiMaxOrdersPerDay     Int      @default(5)
-  aiAutomationRules     Json?
+  openaiApiKeyEncrypted  String?
+  openaiApiKeyHint       String?
+  aiModel                String   @default("gpt-4o-mini")
+  aiTone                 String?
+  aiMode                 AiMode   @default(DRAFT_APPROVAL)
+  aiMonthlyTokenCap      Int?
+  aiMonthlyCostCapUsd    Decimal? @db.Decimal(12, 4)
+  aiMaxOrderAmount       Decimal? @db.Decimal(14, 2)
+  aiMaxQtyPerSku         Decimal? @db.Decimal(14, 4)
+  aiMaxOrdersPerDay      Int      @default(5)
+  aiAutomationRules      Json?
   // Interruptores del dueño (Configuración → IA y canales).
   aiAgentEnabled         Boolean  @default(true)
   whatsappNoticesEnabled Boolean  @default(true)
@@ -1019,6 +1033,8 @@ model Product {
   tenantId         String         @default(dbgenerated("app_current_tenant()")) @db.Uuid
   sku              String
   barcode          String?
+  // true cuando el código lo generó el sistema (EAN-13 interno, prefijo 2) y no viene de fábrica.
+  barcodeGenerated Boolean        @default(false)
   name             String
   description      String?
   kind             ProductKind
@@ -1064,6 +1080,7 @@ model Product {
   quoteItems          QuoteItem[]
   saleItems           SaleItem[]
   warranties          Warranty[]
+  dispatchItems       DispatchGuideItem[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, sku], map: "products_tenantId_sku_active")
@@ -1442,7 +1459,8 @@ model StockTransfer {
   fromWarehouse Warehouse @relation("TransferFrom", fields: [tenantId, fromWarehouseId], references: [tenantId, id], onDelete: Restrict)
   toWarehouse   Warehouse @relation("TransferTo", fields: [tenantId, toWarehouseId], references: [tenantId, id], onDelete: Restrict)
 
-  items StockTransferItem[]
+  items          StockTransferItem[]
+  dispatchGuides DispatchGuide[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, number])
@@ -2110,11 +2128,12 @@ model Sale {
   quote       Quote?       @relation(fields: [tenantId, quoteId], references: [tenantId, id], onDelete: Restrict)
   seller      User?        @relation(fields: [tenantId, sellerId], references: [tenantId, id], onDelete: Restrict)
 
-  items      SaleItem[]
-  payments   SalePayment[]
-  receivable Receivable?
-  returns    SaleReturn[]
-  documents  FiscalDocument[]
+  items          SaleItem[]
+  payments       SalePayment[]
+  receivable     Receivable?
+  returns        SaleReturn[]
+  documents      FiscalDocument[]
+  dispatchGuides DispatchGuide[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, number])
@@ -2467,4 +2486,80 @@ model RateLimitBucket {
 
   @@index([windowStart])
   @@map("rate_limit_buckets")
+}
+
+// -----------------------------------------------------------------------------
+// GUÍA DE REMISIÓN ELECTRÓNICA (GRE remitente, SUNAT)
+// -----------------------------------------------------------------------------
+
+model DispatchGuide {
+  id                 String                @id @default(uuid(7)) @db.Uuid
+  tenantId           String                @default(dbgenerated("app_current_tenant()")) @db.Uuid
+  series             String
+  correlative        Int
+  issueDate          DateTime              @db.Timestamptz(3)
+  transferDate       DateTime              @db.Timestamptz(3)
+  reason             DispatchReason
+  reasonNote         String?
+  transportMode      DispatchTransportMode
+  // Transportista (público: RUC; privado: conductor con DNI).
+  carrierDocType     DocumentIdType?
+  carrierDocNumber   String?
+  carrierName        String?
+  driverDocNumber    String?
+  driverName         String?
+  driverLicense      String?
+  vehiclePlate       String?
+  grossWeightKg      Decimal               @db.Decimal(12, 3)
+  packages           Int?
+  originAddress      String
+  originUbigeo       String
+  destinationAddress String
+  destinationUbigeo  String
+  // Destinatario (cliente, proveedor o la propia empresa en un traslado entre establecimientos).
+  recipientDocType   DocumentIdType
+  recipientDocNumber String
+  recipientName      String
+  saleId             String?               @db.Uuid
+  transferId         String?               @db.Uuid
+  relatedDocument    String?
+  status             FiscalStatus          @default(PENDING)
+  providerRef        String?
+  hash               String?
+  xmlUrl             String?
+  pdfUrl             String?
+  cdrUrl             String?
+  errorMessage       String?
+  voidedAt           DateTime?             @db.Timestamptz(3)
+  voidReason         String?
+  createdById        String?               @db.Uuid
+  createdAt          DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(3)
+
+  sale     Sale?          @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict)
+  transfer StockTransfer? @relation(fields: [tenantId, transferId], references: [tenantId, id], onDelete: Restrict)
+
+  items DispatchGuideItem[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, series, correlative])
+  @@index([tenantId, createdAt])
+  @@map("dispatch_guides")
+}
+
+model DispatchGuideItem {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  tenantId    String  @default(dbgenerated("app_current_tenant()")) @db.Uuid
+  guideId     String  @db.Uuid
+  productId   String? @db.Uuid
+  description String
+  sku         String?
+  unit        String  @default("UND")
+  quantity    Decimal @db.Decimal(14, 4)
+
+  guide   DispatchGuide @relation(fields: [tenantId, guideId], references: [tenantId, id], onDelete: Cascade)
+  product Product?      @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, guideId])
+  @@map("dispatch_guide_items")
 }

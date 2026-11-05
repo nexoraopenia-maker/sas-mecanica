@@ -30,16 +30,19 @@ test.describe("escáner con la cámara en el POS", () => {
     await enterDemo(page);
     // Producto con el código de barras que muestra la cámara falsa.
     await page.goto("/app/catalog");
-    await page
+    await page.getByRole("button", { name: "Nuevo producto" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Nuevo producto" });
+    await dialog
       .getByLabel("SKU", { exact: true })
       .fill(`ESC-${Date.now().toString(36).toUpperCase()}`);
-    await page.getByLabel("Nombre", { exact: true }).fill("Llanta del escáner e2e");
-    await page.getByLabel("Precio de venta").fill("59");
-    await page.getByLabel("Código de barras").fill(BARCODE);
+    await dialog.getByLabel("Nombre", { exact: true }).fill("Llanta del escáner e2e");
+    await dialog.getByLabel("Precio de venta").fill("59");
+    await dialog.getByLabel("Código de barras", { exact: true }).fill(BARCODE);
     // El tipo por defecto es Llanta: lleva medida (la misma que usan las demás pruebas de alta).
-    await page.getByLabel("Medida de llanta").last().fill("195/65R15");
-    await page.getByRole("button", { name: "Crear producto" }).click();
-    await expect(page.getByText(/Producto .* creado\./)).toBeVisible({ timeout: 30_000 });
+    await dialog.getByLabel("Medida de llanta").fill("195/65R15");
+    await dialog.getByRole("button", { name: "Crear producto" }).click();
+    await expect(dialog.getByText(/Producto .* creado\./)).toBeVisible({ timeout: 30_000 });
+    await dialog.getByRole("button", { name: "Cerrar" }).click();
 
     // Caja abierta y mostrador.
     await goNav(page, "Vender", { exact: true });

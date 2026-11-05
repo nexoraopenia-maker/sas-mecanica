@@ -222,6 +222,40 @@ No hay una tabla `ServiceOrder` aparte: la **orden de trabajo (OT)** ya es la or
 - PLE: permisos del módulo Contabilidad, vista previa de validación, exportación TXT/ZIP para el contador y evento de auditoría `ple.exported`.
 - Migraciones nuevas (con `down.sql`): `20261105120000_module_enum_values` y `20261105120100_modules_rubros_plans`.
 
+## Catálogo: alta manual, importación, etiquetas y guías de remisión
+
+### Alta manual y cabecera del catálogo
+
+`/app/catalog` tiene tres acciones: **Nuevo producto** (ventana modal), **Importar** y **Etiquetas**. El formulario pide, según el tipo: marca, código de barras, precio de venta, precio de compra (solo con permiso de costos), **stock mínimo** (política manual de reposición en el almacén principal), código **OEM**, medida de llanta y la **compatibilidad con un vehículo** (marca, modelo, año desde/hasta).
+
+### Código de barras autogenerado
+
+- Si un producto (con stock) se crea sin código de fábrica, el sistema le asigna un **EAN-13 interno**: prefijo `2` (reservado por GS1 para uso de la tienda, nunca choca con un código de fábrica) + correlativo por empresa (`document_sequences`, tipo `product_barcode`) + dígito verificador. `products.barcodeGenerated` lo distingue del código de fábrica.
+- Se puede desactivar con «No generar código de barras». Los servicios nunca llevan código.
+- `lib/barcode` genera EAN-13 y Code 128 (juego B) como SVG, sin dependencias. Las pruebas rasterizan los códigos y los **decodifican con ZXing**, el mismo motor del escáner del POS.
+
+### Etiquetas para impresora térmica (`/app/catalog/labels`)
+
+Se eligen productos y copias y un tamaño (50×25, 40×30 o 60×40 mm). **Generar etiquetas** asigna el código a los que no lo tienen (queda guardado y auditado) y abre la hoja. Al imprimir, `@page` fija el tamaño exacto de la etiqueta (una por página, sin márgenes) y solo se imprime la hoja; en el cuadro de impresión elige la impresora térmica, el papel de la etiqueta y márgenes «Ninguno».
+
+### Importar un comprobante de compra (`/app/catalog/import`)
+
+1. **Leer**: PDF, XML UBL de SUNAT o foto (máx. 8 MB; el tipo se detecta por el contenido, no por la extensión).
+   - **XML**: se lee localmente con un lector mínimo y seguro (rechaza DTD/entidades), sin IA y para cualquier plan.
+   - **PDF/foto**: extracción con IA tras la interfaz `InvoiceExtractor` (`server/integrations/invoice-extractor.ts`). Con clave de OpenAI usa Structured Outputs (esquema estricto) con el modelo de la empresa; en **demo** usa un extractor **simulado** con líneas de ejemplo (la pantalla lo avisa). Requiere el módulo «IA de inventario» (plan Premium), respeta el tope mensual de tokens/costo y registra cada corrida en `ai_runs` (tipo `OTHER`) **sin guardar el contenido del documento**. El texto del documento se trata como dato (anti prompt-injection) y todo pasa por revisión humana.
+2. **Revisar**: tabla editable (SKU, nombre, tipo, cantidad, costo sin IGV, precio de venta). Los productos que ya existen por SKU o código de barras solo suman stock; los nuevos exigen precio de venta; los controlados por lote/serie se ingresan desde Inventario.
+3. **Guardar**: crea los productos nuevos y registra la entrada por el kardex (`registerStockIn`, nunca editando saldos). Cada fila es independiente e idempotente (`clave:índice`); si una falla, las demás se guardan y se puede reintentar solo las fallidas.
+
+### Guías de Remisión Electrónicas (`/app/guias`)
+
+GRE **remitente** bajo el módulo «Facturación SUNAT» (permisos `billing:ver` para consultar, `billing:crear` para emitir y `billing:editar` para anular).
+
+- Motivos (catálogo 20): venta, compra, traslado entre establecimientos y otros. Modalidad (catálogo 18): **público** (RUC y razón social del transportista) o **privado** (DNI y nombre del conductor, licencia opcional y **placa** obligatoria).
+- Campos exigidos: peso total bruto, bultos, dirección y **UBIGEO** de partida y llegada, destinatario (documento validado según su tipo) y el detalle de bienes. El traslado entre establecimientos solo puede ir a la propia empresa (mismo RUC). La fecha de traslado no puede ser anterior a la de emisión.
+- Se puede precargar desde una **venta** o una **transferencia entre almacenes**. Serie `T001` con correlativo por serie. Una guía **no mueve stock**: las transferencias se registran en Inventario.
+- Envío: con proveedor simulado (demo/sandbox) la guía queda _Aceptada (simulado)_; con un OSE real queda _Pendiente de envío_ porque aún no hay adaptador de GRE (la interfaz `DispatchGuideProvider` en `server/integrations/dispatch-provider.ts` es el punto de extensión). No tiene validez ante SUNAT mientras no haya un OSE conectado.
+- Migración nueva (con `down.sql`): `20261106120000_catalog_barcodes_dispatch_guides`.
+
 ## Migraciones
 
 - Nunca edites una migración ya aplicada.

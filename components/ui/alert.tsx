@@ -5,11 +5,12 @@ export function Alert({
   className,
   tone = "info",
   ...props
-}: React.ComponentProps<"div"> & { tone?: "info" | "error" | "success" }) {
+}: React.ComponentProps<"div"> & { tone?: "info" | "error" | "success" | "warning" }) {
   const tones = {
     info: "border-border bg-muted",
     error: "border-danger/40 bg-danger/10 text-danger",
     success: "border-success/30 bg-success/10 text-success",
+    warning: "border-warning/40 bg-warning/10 text-warning",
   } as const;
   return (
     <div

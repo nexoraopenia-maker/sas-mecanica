@@ -1,9 +1,17 @@
 import { can, requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
-import { Prisma, softDeleteData, withTenant, type ProductKind, type TenantTx } from "@/lib/db";
+import {
+  nextSequence,
+  Prisma,
+  softDeleteData,
+  withTenant,
+  type ProductKind,
+  type TenantTx,
+} from "@/lib/db";
 import { ConflictError, NotFoundError, PermissionDeniedError } from "@/lib/errors";
 import { CATALOG_CHIPS } from "@/lib/catalog/chips";
 import { marginPercent, netSalePrice } from "@/lib/catalog/margin";
 import { stockIndicator, type StockIndicator } from "@/lib/catalog/stock-light";
+import { internalEan13 } from "@/lib/barcode";
 import { effectiveThresholds } from "@/lib/inventory/status";
 import { formatTireSize, isTireTooOld, parseTireSize } from "@/lib/inventory/tire";
 import {
@@ -170,6 +178,16 @@ const TRACKING: Record<ProductKind, "NONE" | "LOT" | "SERIAL"> = {
 };
 
 /** Alta de producto con su ficha técnica según el tipo (llanta, batería, lubricante, repuesto...). */
+/** Siguiente EAN-13 interno libre (salta los que ya existan por haberse escrito a mano). */
+export async function nextInternalBarcode(tx: TenantTx): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const code = internalEan13(await nextSequence(tx, "product_barcode"));
+    if (!(await tx.product.findFirst({ where: { barcode: code }, select: { id: true } })))
+      return code;
+  }
+  throw new ConflictError("BARCODE_SEQUENCE", "No se pudo generar un código de barras libre");
+}
+
 export async function createProduct(
   actor: AuthUser,
   input: CreateProductInput,
@@ -183,10 +201,14 @@ export async function createProduct(
 
   try {
     return await withTenant(requireTenantId(actor), async (tx) => {
+      const isStocked = data.kind !== "SERVICE";
+      const generateBarcode = !data.barcode && data.autoBarcode && isStocked;
+      const barcode = data.barcode ?? (generateBarcode ? await nextInternalBarcode(tx) : null);
       const product = await tx.product.create({
         data: {
           sku: data.sku,
-          barcode: data.barcode ?? null,
+          barcode,
+          barcodeGenerated: generateBarcode,
           name: data.name,
           description: data.description ?? null,
           kind: data.kind,
@@ -194,7 +216,7 @@ export async function createProduct(
           categoryId: data.categoryId ?? null,
           unit: data.unit,
           trackingMode: TRACKING[data.kind],
-          isStocked: data.kind !== "SERVICE",
+          isStocked,
           salePrice: data.salePrice,
           lastPurchaseCost: data.lastPurchaseCost ?? null,
           taxAffectation: data.taxAffectation,
@@ -238,6 +260,21 @@ export async function createProduct(
         },
         include: productInclude,
       });
+      if (data.minStock !== undefined && isStocked) {
+        const warehouse =
+          (await tx.warehouse.findFirst({ where: { isDefault: true, isActive: true } })) ??
+          (await tx.warehouse.findFirst({ where: { isActive: true }, orderBy: { code: "asc" } }));
+        if (!warehouse)
+          throw new ConflictError("NO_WAREHOUSE", "Crea un almacén antes de fijar el stock mínimo");
+        await tx.reorderPolicy.create({
+          data: {
+            warehouseId: warehouse.id,
+            productId: product.id,
+            mode: "MANUAL",
+            manualMinStock: data.minStock.toString(),
+          },
+        });
+      }
       await recordAudit(tx, auditContextOf(actor, meta), {
         action: "product.created",
         entityType: "product",
@@ -247,6 +284,7 @@ export async function createProduct(
           name: product.name,
           kind: product.kind,
           salePrice: product.salePrice.toString(),
+          barcodeGenerated: generateBarcode,
         },
       });
       return toView(product, canSeeCost);
@@ -283,7 +321,7 @@ export async function updateProduct(
           ...(data.name !== undefined ? { name: data.name } : {}),
           ...(data.description !== undefined ? { description: data.description } : {}),
           ...(data.brand !== undefined ? { brand: data.brand } : {}),
-          ...(data.barcode !== undefined ? { barcode: data.barcode } : {}),
+          ...(data.barcode !== undefined ? { barcode: data.barcode, barcodeGenerated: false } : {}),
           ...(data.salePrice !== undefined ? { salePrice: data.salePrice } : {}),
           ...(data.lastPurchaseCost !== undefined
             ? { lastPurchaseCost: data.lastPurchaseCost }
@@ -760,4 +798,122 @@ export async function findOldTireLots(tx: TenantTx, now: Date = new Date()): Pro
     });
   }
   return [...totals.values()].sort((a, b) => b.ageYears - a.ageYears);
+}
+
+// ---------------------------------------------------------------------------
+// Etiquetas con código de barras
+// ---------------------------------------------------------------------------
+
+export interface LabelProduct {
+  id: string;
+  sku: string;
+  name: string;
+  brand: string | null;
+  salePrice: string;
+  barcode: string;
+  barcodeGenerated: boolean;
+}
+
+const labelIdsSchema = z.array(z.uuid()).min(1).max(200);
+
+/**
+ * Productos listos para imprimir etiqueta. A los que no tienen código de fábrica se les asigna un
+ * EAN-13 interno y queda guardado, de modo que el POS pueda escanear la etiqueta que se imprimió.
+ */
+export async function prepareLabelProducts(
+  actor: AuthUser,
+  productIds: string[],
+  meta: RequestMeta = {},
+): Promise<LabelProduct[]> {
+  requirePermission(actor, "catalog:ver");
+  const ids = [...new Set(labelIdsSchema.parse(productIds))];
+  return withTenant(requireTenantId(actor), async (tx) => {
+    const rows = await tx.product.findMany({ where: { id: { in: ids }, isStocked: true } });
+    if (rows.length === 0) throw new NotFoundError("Producto");
+    const missing = rows.filter((row) => !row.barcode);
+    if (missing.length > 0) {
+      requirePermission(actor, "catalog:editar");
+      for (const row of missing) {
+        row.barcode = await nextInternalBarcode(tx);
+        row.barcodeGenerated = true;
+        await tx.product.update({
+          where: { id: row.id },
+          data: { barcode: row.barcode, barcodeGenerated: true },
+        });
+      }
+      await recordAudit(tx, auditContextOf(actor, meta), {
+        action: "product.barcodes_generated",
+        entityType: "product",
+        after: { count: missing.length, productIds: missing.map((row) => row.id) },
+      });
+    }
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return rows
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .map((row) => ({
+        id: row.id,
+        sku: row.sku,
+        name: row.name,
+        brand: row.brand,
+        salePrice: row.salePrice.toString(),
+        barcode: row.barcode as string,
+        barcodeGenerated: row.barcodeGenerated,
+      }));
+  });
+}
+
+/** Productos con stock controlado para elegir en la pantalla de etiquetas. */
+export async function listLabelCandidates(
+  actor: AuthUser,
+  q?: string,
+): Promise<Array<Pick<LabelProduct, "id" | "sku" | "name"> & { barcode: string | null }>> {
+  requirePermission(actor, "catalog:ver");
+  const text = q?.trim().slice(0, 100);
+  return withTenant(requireTenantId(actor), async (tx) => {
+    const rows = await tx.product.findMany({
+      where: {
+        isStocked: true,
+        isActive: true,
+        ...(text
+          ? {
+              OR: [
+                { name: { contains: text, mode: "insensitive" } },
+                { sku: { contains: text, mode: "insensitive" } },
+                { barcode: text },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { name: "asc" },
+      take: 60,
+      select: { id: true, sku: true, name: true, barcode: true },
+    });
+    return rows;
+  });
+}
+
+/** Solo lectura: productos de las etiquetas ya preparadas (los que no tienen código se omiten). */
+export async function getLabelProducts(
+  actor: AuthUser,
+  productIds: string[],
+): Promise<LabelProduct[]> {
+  requirePermission(actor, "catalog:ver");
+  const ids = [...new Set(labelIdsSchema.parse(productIds))];
+  return withTenant(requireTenantId(actor), async (tx) => {
+    const rows = await tx.product.findMany({
+      where: { id: { in: ids }, isStocked: true, barcode: { not: null } },
+    });
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return rows
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .map((row) => ({
+        id: row.id,
+        sku: row.sku,
+        name: row.name,
+        brand: row.brand,
+        salePrice: row.salePrice.toString(),
+        barcode: row.barcode as string,
+        barcodeGenerated: row.barcodeGenerated,
+      }));
+  });
 }

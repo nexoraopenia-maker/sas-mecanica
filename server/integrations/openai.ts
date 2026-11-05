@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+/** Contenido multimodal (imágenes y PDF) para extraer datos de comprobantes. */
+export type AiContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } }
+  | { type: "file"; file: { filename: string; file_data: string } };
+
 export interface AiMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -14,6 +20,8 @@ export interface AiToolDef {
 export interface AiRequest {
   model: string;
   messages: AiMessage[];
+  /** Adjuntos (imagen/PDF) que viajan junto al último mensaje del usuario. */
+  attachments?: AiContentPart[];
   /** Function calling: el modelo SOLO puede invocar estas herramientas. */
   tools?: AiToolDef[];
   forceTool?: string;
@@ -87,7 +95,7 @@ export class OpenAiClient implements AiClient {
   async complete(request: AiRequest): Promise<AiResponse> {
     const body = {
       model: request.model,
-      messages: request.messages,
+      messages: withAttachments(request.messages, request.attachments),
       max_completion_tokens: request.maxTokens,
       ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
       ...(request.tools
@@ -170,6 +178,19 @@ export class OpenAiClient implements AiClient {
     }
     throw lastError ?? new AiProviderError("OpenAI no respondió", null);
   }
+}
+
+function withAttachments(messages: AiMessage[], attachments?: AiContentPart[]): unknown[] {
+  if (!attachments || attachments.length === 0) return messages;
+  let last = -1;
+  messages.forEach((message, index) => {
+    if (message.role === "user") last = index;
+  });
+  return messages.map((message, index) =>
+    index === last
+      ? { role: message.role, content: [{ type: "text", text: message.content }, ...attachments] }
+      : message,
+  );
 }
 
 function safeJson(text: string): unknown {

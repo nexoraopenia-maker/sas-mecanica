@@ -1,10 +1,11 @@
+import { Printer, Upload } from "lucide-react";
 import Link from "next/link";
 import { ZodError } from "zod";
 import { StockBar } from "@/components/catalog/stock-bar";
-import { ProductForm } from "@/components/forms/product-form";
+import { NewProductDialog } from "@/components/catalog/new-product-dialog";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { can, requirePermission } from "@/lib/auth/can";
 import { requireTenantUser } from "@/lib/auth/guards";
@@ -52,6 +53,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const c = es.catalog;
   const chip = CATALOG_CHIPS.find((item) => item.id === params.chip)?.id ?? "todos";
   const canSeeCost = can(user, "purchasing:ver_costos_compra");
+  const canCreate = can(user, "catalog:crear");
+  const canImport = can(user, "inventory:crear");
 
   let result: Awaited<ReturnType<typeof listCatalog>> | null = null;
   let filterError: string | null = null;
@@ -74,13 +77,26 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-semibold">{c.title}</h1>
-        {result ? (
-          <p className="text-sm text-muted-foreground" data-testid="catalog-total">
-            {result.total} {c.results}
-          </p>
-        ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="text-2xl font-semibold">{c.title}</h1>
+          {result ? (
+            <p className="text-sm text-muted-foreground" data-testid="catalog-total">
+              {result.total} {c.results}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2" data-testid="catalog-actions">
+          {canCreate ? <NewProductDialog canSeeCost={canSeeCost} /> : null}
+          {canCreate && canImport ? (
+            <Link href="/app/catalog/import" className={buttonVariants({ variant: "outline" })}>
+              <Upload className="size-4" aria-hidden /> {c.importAction}
+            </Link>
+          ) : null}
+          <Link href="/app/catalog/labels" className={buttonVariants({ variant: "outline" })}>
+            <Printer className="size-4" aria-hidden /> {c.labelsAction}
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -169,10 +185,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             <>
               <p className="text-lg font-medium">{c.emptyTitle}</p>
               <p className="text-sm text-muted-foreground">{c.emptyHint}</p>
-              {can(user, "catalog:crear") ? (
-                <a href="#nuevo-producto" className={cn(buttonVariants(), "mx-auto")}>
-                  {c.emptyCta}
-                </a>
+              {canCreate ? (
+                <div className="mx-auto">
+                  <NewProductDialog canSeeCost={canSeeCost} label={c.emptyCta} />
+                </div>
               ) : null}
             </>
           )}
@@ -262,13 +278,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             </nav>
           ) : null}
         </>
-      ) : null}
-
-      {can(user, "catalog:crear") ? (
-        <Card id="nuevo-producto">
-          <CardTitle>{c.newProduct}</CardTitle>
-          <ProductForm canSeeCost={canSeeCost} />
-        </Card>
       ) : null}
     </>
   );

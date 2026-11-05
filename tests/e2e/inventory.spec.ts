@@ -95,13 +95,15 @@ test.describe("catálogo e inventario (demo)", () => {
     const sku = `E2E-${randomUUID().slice(0, 6)}`.toUpperCase();
 
     await page.goto("/app/catalog");
+    await page.getByRole("button", { name: "Nuevo producto" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Nuevo producto" });
     // React limpia el formulario tras cada envío: se vuelve a llenar para el reintento.
     const fillTire = async () => {
-      await page.getByLabel("SKU", { exact: true }).fill(sku);
-      await page.getByLabel("Nombre", { exact: true }).fill("Llanta E2E 195/65 R15");
-      await page.getByLabel("Precio de venta").fill("320");
-      await page.getByLabel("Medida de llanta").last().fill("195/65R15");
-      await page.getByRole("button", { name: "Crear producto" }).click();
+      await dialog.getByLabel("SKU", { exact: true }).fill(sku);
+      await dialog.getByLabel("Nombre", { exact: true }).fill("Llanta E2E 195/65 R15");
+      await dialog.getByLabel("Precio de venta").fill("320");
+      await dialog.getByLabel("Medida de llanta").fill("195/65R15");
+      await dialog.getByRole("button", { name: "Crear producto" }).click();
     };
     await fillTire();
     await expect(page.getByText(`Producto ${sku} creado.`)).toBeVisible();

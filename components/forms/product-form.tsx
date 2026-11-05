@@ -51,11 +51,30 @@ export function ProductForm({ canSeeCost }: { canSeeCost: boolean }) {
       <Field id="sku" label={c.sku} required />
       <Field id="name" label={c.name} required />
       <Field id="brand" label={c.brand} />
-      <Field id="barcode" label={c.barcode} inputMode="numeric" />
+      {kind !== "SERVICE" ? (
+        <div>
+          <Field id="barcode" label={c.barcode} hint={c.barcodeHint} />
+          <label className="mt-2 flex min-h-8 items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" name="noAutoBarcode" className="size-4" />
+            {c.noAutoBarcode}
+          </label>
+        </div>
+      ) : null}
       <Field id="salePrice" label={c.price} type="number" min={0} step="0.01" required />
       {canSeeCost ? (
-        <Field id="lastPurchaseCost" label={c.cost} type="number" min={0} step="0.01" />
+        <Field id="lastPurchaseCost" label={c.purchasePrice} type="number" min={0} step="0.01" />
       ) : null}
+      {kind !== "SERVICE" ? (
+        <Field
+          id="minStock"
+          label={c.minStock}
+          hint={c.minStockHint}
+          type="number"
+          min={0}
+          step="any"
+        />
+      ) : null}
+      {kind !== "SERVICE" && kind !== "PART" ? <Field id="oemCode" label={c.oemCode} /> : null}
 
       {kind === "TIRE" ? (
         <>
@@ -91,6 +110,15 @@ export function ProductForm({ canSeeCost }: { canSeeCost: boolean }) {
             {c.isOem}
           </label>
         </>
+      ) : null}
+      {kind !== "SERVICE" ? (
+        <fieldset className="grid gap-4 rounded-lg border border-border p-3 sm:col-span-2 sm:grid-cols-4">
+          <legend className="px-1 text-sm font-medium">{c.compatibility}</legend>
+          <Field id="vehicleMake" label={c.vehicleMake} />
+          <Field id="vehicleModel" label={c.vehicleModel} />
+          <Field id="yearFrom" label={c.yearFrom} type="number" min={1950} max={2100} />
+          <Field id="yearTo" label={c.yearTo} type="number" min={1950} max={2100} />
+        </fieldset>
       ) : null}
     </ActionForm>
   );

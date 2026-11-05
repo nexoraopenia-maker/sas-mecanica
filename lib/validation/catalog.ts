@@ -34,6 +34,10 @@ const base = {
   taxAffectation: z.enum(["TAXED", "EXEMPT", "UNAFFECTED"]).default("TAXED"),
   warrantyPolicyId: z.uuid().optional(),
   isActive: z.boolean().default(true),
+  /** Sin código de fábrica, el sistema genera un EAN-13 interno (desactivar solo para dejarlo vacío a propósito). */
+  autoBarcode: z.boolean().default(true),
+  /** Stock mínimo manual en el almacén principal (alerta de «stock crítico»). */
+  minStock: z.coerce.number().min(0).max(10_000_000).optional(),
 };
 
 export const compatibilitySchema = z
