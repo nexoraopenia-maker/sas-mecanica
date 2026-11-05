@@ -49,7 +49,11 @@ export interface AiPolicy {
 /** Política de IA que la Fase 4 debe respetar antes de cada llamada. */
 export async function resolveAiPolicy(tx: TenantTx): Promise<AiPolicy> {
   const tenant = await tx.tenant.findFirstOrThrow({ include: { plan: true, settings: true } });
-  const modules = effectiveModules(tenant.plan, tenant.settings?.enabledModules ?? []);
+  const modules = effectiveModules(
+    tenant.plan,
+    tenant.settings?.enabledModules ?? [],
+    tenant.settings?.disabledModules ?? [],
+  );
   const enabled = tenant.plan.aiPurchasingAgent && modules.includes("AI_AGENT");
   const configured = tenant.settings?.aiMonthlyTokenCap ?? tenant.plan.monthlyAiTokens;
   if (tenant.isDemo) {

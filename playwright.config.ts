@@ -11,8 +11,24 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL: `http://localhost:${port}`, trace: "on-first-retry" },
   projects: [
-    { name: "tablet", use: { ...devices["Galaxy Tab S4"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    { name: "tablet", testIgnore: /scanner\.spec\.ts/, use: { ...devices["Galaxy Tab S4"] } },
+    { name: "mobile", testIgnore: /scanner\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+    {
+      // Cámara falsa de Chromium con un EAN-13 (tests/fixtures/ean13.mjpeg) para probar el escáner del POS.
+      name: "camera",
+      testMatch: /scanner\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
+        permissions: ["camera"],
+        launchOptions: {
+          args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+            `--use-file-for-fake-video-capture=${process.cwd()}/tests/fixtures/ean13.mjpeg`,
+          ],
+        },
+      },
+    },
   ],
   webServer: {
     command: `npm run build && npm run start -- -p ${port}`,

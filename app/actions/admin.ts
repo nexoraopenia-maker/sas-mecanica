@@ -11,9 +11,13 @@ import { readSessionClaims, startSession } from "@/server/services/session";
 import {
   changeTenantPlan,
   createTenant,
+  createTenantQuick,
   deleteTenant,
   reactivateTenant,
+  resetTenantAdminPassword,
   suspendTenant,
+  updateTenantFiscal,
+  updateTenantModules,
 } from "@/server/services/tenants";
 
 const optional = (formData: FormData, name: string) => field(formData, name).trim() || undefined;
@@ -142,4 +146,100 @@ export async function endImpersonationAction(): Promise<void> {
   await endImpersonation(user, claims.imp, await getRequestMeta());
   await startSession({ sub: claims.sub, tid: null, sv: claims.sv, mfa: true });
   redirect(tenantId ? `/admin/tenants/${tenantId}` : "/admin");
+}
+
+/** Alta rápida con contraseña temporal. La clave se muestra una sola vez en el aviso (no se guarda en claro). */
+export async function createTenantQuickAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requirePlatformUser();
+    const groups = formData.getAll("group").map(String);
+    const result = await createTenantQuick(
+      actor,
+      {
+        legalName: field(formData, "legalName"),
+        tradeName: optional(formData, "tradeName"),
+        taxId: optional(formData, "taxId"),
+        contactEmail: optional(formData, "contactEmail"),
+        planCode: field(formData, "planCode"),
+        businessType: (optional(formData, "businessType") ?? "MIXED") as "MIXED",
+        groups: groups.length > 0 ? groups : undefined,
+        adminName: field(formData, "adminName"),
+        adminEmail: field(formData, "adminEmail"),
+        tempPassword: optional(formData, "tempPassword"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath("/admin/tenants");
+    return {
+      message: `Cuenta creada. Entrega estos datos al cliente (la contraseña no se vuelve a mostrar): usuario ${result.adminEmail} · contraseña temporal ${result.tempPassword} · empresa /admin/tenants/${result.tenantId}`,
+    };
+  });
+}
+
+export async function updateTenantModulesAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requirePlatformUser();
+    const tenantId = field(formData, "tenantId");
+    await updateTenantModules(
+      actor,
+      {
+        tenantId,
+        businessType: field(formData, "businessType") as "MIXED",
+        groups: formData.getAll("group").map(String),
+        reason: field(formData, "reason"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    return { message: "Rubro y módulos guardados. El cliente los ve en su próximo clic." };
+  });
+}
+
+export async function updateTenantFiscalAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requirePlatformUser();
+    const tenantId = field(formData, "tenantId");
+    await updateTenantFiscal(
+      actor,
+      {
+        tenantId,
+        taxId: optional(formData, "taxId"),
+        corporateEmail: optional(formData, "corporateEmail"),
+        reason: field(formData, "reason"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    return { message: "Datos fiscales guardados." };
+  });
+}
+
+export async function resetTenantAdminPasswordAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const actor = await requirePlatformUser();
+    const result = await resetTenantAdminPassword(
+      actor,
+      {
+        tenantId: field(formData, "tenantId"),
+        reason: field(formData, "reason"),
+        tempPassword: optional(formData, "tempPassword"),
+      },
+      await getRequestMeta(),
+    );
+    return {
+      message: `Contraseña temporal para ${result.adminEmail}: ${result.tempPassword} (no se vuelve a mostrar; deberá cambiarla al entrar).`,
+    };
+  });
 }

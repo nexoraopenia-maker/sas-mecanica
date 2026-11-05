@@ -16,6 +16,9 @@ const MODULE_LABELS: Record<AppModule, string> = {
   REPORTS: "Reportes",
   SETTINGS: "Configuración",
   AUDIT: "Auditoría",
+  WHATSAPP: "WhatsApp",
+  ACCOUNTING: "Contabilidad (PLE)",
+  BRANCHES: "Sucursales",
 };
 
 const ACTION_LABELS: Record<string, string> = {

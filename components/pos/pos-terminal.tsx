@@ -65,9 +65,12 @@ const buyerOf = (customer: CustomerChoice | null): Buyer | null =>
 export function PosTerminal({
   tax,
   maxDiscountPercent,
+  fiscalReady = true,
 }: {
   tax: PosTaxContext;
   maxDiscountPercent: number;
+  /** Con RUC cargado (o demo) se pueden emitir boletas y facturas; si no, solo nota de venta. */
+  fiscalReady?: boolean;
 }) {
   const t = es.pos;
   const offline = useOffline();
@@ -85,7 +88,9 @@ export function PosTerminal({
   const [customerResults, setCustomerResults] = useState<
     Array<CustomerChoice & { plates: string[] }>
   >([]);
-  const [documentType, setDocumentType] = useState<DocumentType>("BOLETA");
+  const [documentType, setDocumentType] = useState<DocumentType>(
+    fiscalReady ? "BOLETA" : "NOTA_VENTA",
+  );
   const [payments, setPayments] = useState<PaymentRow[]>([
     { key: newKey(), method: "CASH", amount: "" },
   ]);
@@ -549,8 +554,11 @@ export function PosTerminal({
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value as DocumentType)}
               >
-                <option value="BOLETA">{t.boleta}</option>
-                <option value="FACTURA" disabled={!online}>
+                <option value="BOLETA" disabled={!fiscalReady}>
+                  {t.boleta}
+                  {fiscalReady ? "" : ` (${t.needsRuc})`}
+                </option>
+                <option value="FACTURA" disabled={!online || !fiscalReady}>
                   {t.factura}
                   {online ? "" : ` (${t.needsConnection})`}
                 </option>
@@ -564,6 +572,11 @@ export function PosTerminal({
               </p>
             </div>
           </div>
+          {!fiscalReady ? (
+            <Alert tone="info" data-testid="pos-no-ruc">
+              {t.noRucNote}
+            </Alert>
+          ) : null}
           {documentProblem ? (
             <Alert tone="info" data-testid="pos-document-rule">
               {documentProblem}

@@ -5,6 +5,15 @@ import { runAction, field, type ActionState } from "@/lib/action";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { getRequestMeta } from "@/lib/http";
 import {
+  createBranch,
+  createWarehouse,
+  setActiveBranch,
+  setBranchActive,
+  setWarehouseActive,
+  updateBranch,
+  updateWarehouse,
+} from "@/server/services/branches";
+import {
   createRole,
   createRoleFromTemplate,
   deleteRole,
@@ -175,5 +184,130 @@ export async function roleCapabilitiesAction(
     );
     revalidatePath("/app/configuracion");
     return { message: "Capacidades guardadas." };
+  });
+}
+
+const optionalText = (formData: FormData, name: string): string | undefined =>
+  field(formData, name).trim() || undefined;
+
+export async function createBranchAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await createBranch(
+      await requireTenantUser(),
+      {
+        code: field(formData, "code"),
+        name: field(formData, "name"),
+        address: optionalText(formData, "address"),
+        phone: optionalText(formData, "phone"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Sucursal creada con su almacén principal." };
+  });
+}
+
+export async function updateBranchAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await updateBranch(
+      await requireTenantUser(),
+      {
+        id: field(formData, "id"),
+        name: field(formData, "name"),
+        address: optionalText(formData, "address"),
+        phone: optionalText(formData, "phone"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Sucursal actualizada." };
+  });
+}
+
+export async function setBranchActiveAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const active = field(formData, "active") === "true";
+    await setBranchActive(
+      await requireTenantUser(),
+      { id: field(formData, "id"), active },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: active ? "Sucursal activada." : "Sucursal desactivada." };
+  });
+}
+
+export async function createWarehouseAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await createWarehouse(
+      await requireTenantUser(),
+      {
+        branchId: field(formData, "branchId"),
+        code: field(formData, "code"),
+        name: field(formData, "name"),
+      },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Almacén creado." };
+  });
+}
+
+export async function updateWarehouseAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await updateWarehouse(
+      await requireTenantUser(),
+      { id: field(formData, "id"), name: field(formData, "name") },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: "Almacén actualizado." };
+  });
+}
+
+export async function setWarehouseActiveAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const active = field(formData, "active") === "true";
+    await setWarehouseActive(
+      await requireTenantUser(),
+      { id: field(formData, "id"), active },
+      await getRequestMeta(),
+    );
+    revalidatePath("/app/configuracion");
+    return { message: active ? "Almacén activado." : "Almacén desactivado." };
+  });
+}
+
+/** Cambia la sucursal en la que trabaja el usuario (caja, ventas y almacén siguen a esa sede). */
+export async function switchBranchAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    await setActiveBranch(
+      await requireTenantUser(),
+      field(formData, "branchId"),
+      await getRequestMeta(),
+    );
+    revalidatePath("/app", "layout");
+    return { message: "Sucursal cambiada." };
   });
 }

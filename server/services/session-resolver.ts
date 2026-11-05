@@ -1,5 +1,10 @@
 import type { AuthUser } from "@/lib/auth/can";
-import { ROLE_TEMPLATES, permissionKey, type PermissionKey } from "@/lib/auth/permissions";
+import {
+  PERMISSION_CATALOG,
+  ROLE_TEMPLATES,
+  permissionKey,
+  type PermissionKey,
+} from "@/lib/auth/permissions";
 import type { SessionClaims } from "@/lib/auth/token";
 import { withPlatform, withTenant, type AppModule } from "@/lib/db";
 import { effectiveModules } from "./limits";
@@ -39,9 +44,13 @@ async function loadTenantUser(claims: SessionClaims & { tid: string }): Promise<
     if (tenant.isDemo && tenant.demoExpiresAt && tenant.demoExpiresAt <= new Date()) return null;
 
     const role = user.role && !user.role.deletedAt ? user.role : null;
-    const keys = role
-      ? role.permissions.map((rp) => permissionKey(rp.permission.module, rp.permission.action))
-      : [];
+    // El rol Administrador es inmutable y siempre tiene TODO el catálogo (los módulos apagados lo recortan abajo).
+    const keys: PermissionKey[] =
+      role?.key === "admin"
+        ? PERMISSION_CATALOG.map((entry) => entry.key)
+        : role
+          ? role.permissions.map((rp) => permissionKey(rp.permission.module, rp.permission.action))
+          : [];
     return {
       userId: user.id,
       tenantId: tenant.id,
@@ -54,12 +63,19 @@ async function loadTenantUser(claims: SessionClaims & { tid: string }): Promise<
       subscription,
       permissions: filterByModules(
         keys,
-        effectiveModules(tenant.plan, tenant.settings?.enabledModules ?? []),
+        effectiveModules(
+          tenant.plan,
+          tenant.settings?.enabledModules ?? [],
+          tenant.settings?.disabledModules ?? [],
+        ),
       ),
       mfaVerified: true,
       tenantName: tenant.tradeName ?? tenant.legalName,
       isDemo: tenant.isDemo,
       demoExpiresAt: tenant.demoExpiresAt,
+      businessType: tenant.businessType,
+      fiscalReady: tenant.isDemo || Boolean(tenant.taxId),
+      mustChangePassword: user.mustChangePassword,
       impersonation: null,
     };
   });
@@ -87,6 +103,9 @@ async function loadSuperAdmin(claims: SessionClaims): Promise<AuthUser | null> {
       tenantName: null,
       isDemo: false,
       demoExpiresAt: null,
+      businessType: "MIXED",
+      fiscalReady: false,
+      mustChangePassword: false,
       impersonation: null,
     };
     if (!claims.imp) return base;
@@ -110,11 +129,18 @@ async function loadSuperAdmin(claims: SessionClaims): Promise<AuthUser | null> {
       maxDiscountPercent: 100,
       permissions: filterByModules(
         admin?.permissions ?? [],
-        effectiveModules(tenant.plan, tenant.settings?.enabledModules ?? []),
+        effectiveModules(
+          tenant.plan,
+          tenant.settings?.enabledModules ?? [],
+          tenant.settings?.disabledModules ?? [],
+        ),
       ),
       tenantName: tenant.tradeName ?? tenant.legalName,
       isDemo: tenant.isDemo,
       demoExpiresAt: tenant.demoExpiresAt,
+      businessType: tenant.businessType,
+      fiscalReady: tenant.isDemo || Boolean(tenant.taxId),
+      mustChangePassword: false,
       impersonation: { sessionId: session.id, reason: session.reason },
     };
   });

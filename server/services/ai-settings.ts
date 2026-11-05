@@ -314,6 +314,8 @@ export async function sendTestMessage(
   requirePermission(actor, "settings:editar");
   const tenantId = requireTenantId(actor);
   const data = testMessageSchema.parse(input);
+  // WhatsApp es un módulo comercial: sin él (plan o SuperAdmin) tampoco se prueba el canal.
+  if (data.channel === "WHATSAPP") requirePermission(actor, "whatsapp:editar");
   const limit = await consumeRateLimit("channel-test", tenantId, 5, 600);
   if (!limit.allowed) throw new RateLimitError(limit.retryAfterSeconds);
 
@@ -397,7 +399,10 @@ export async function updateAutomationSwitches(
   const data = automationSwitchesSchema.parse(input);
   const tenantId = requireTenantId(actor);
   if (data.aiAgentEnabled !== undefined) requirePermission(actor, "ai_agent:editar");
-  if (data.whatsappNoticesEnabled !== undefined) requirePermission(actor, "settings:editar");
+  if (data.whatsappNoticesEnabled !== undefined) {
+    requirePermission(actor, "settings:editar");
+    requirePermission(actor, "whatsapp:editar");
+  }
   if (data.humanApproval !== undefined) {
     requirePermission(actor, "ai_agent:editar");
     if (data.humanApproval === false) requirePermission(actor, "ai_agent:autorizar_pedidos_ia");

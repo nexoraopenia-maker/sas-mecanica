@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { can } from "@/lib/auth/can";
 import { requireTenantUser } from "@/lib/auth/guards";
@@ -59,28 +60,40 @@ export default async function DashboardPage() {
           >
             <CardTitle>{t.stock}</CardTitle>
             <dl className="grid grid-cols-2 gap-3">
-              <Stat
-                label={t.critical}
-                value={data.stock.critical}
-                tone={data.stock.critical > 0 ? "danger" : undefined}
-                testId="dash-critical"
-              />
-              <Stat
-                label={t.reorder}
-                value={data.stock.reorder}
-                tone={data.stock.reorder > 0 ? "warning" : undefined}
-              />
+              <Link
+                href="/app/inventory?estado=CRITICAL"
+                className="rounded-lg border border-border p-3 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="dash-critical-link"
+              >
+                <dt className="text-xs text-muted-foreground">{t.critical}</dt>
+                <dd
+                  className={`text-3xl font-semibold ${data.stock.critical > 0 ? "text-danger" : ""}`}
+                  data-testid="dash-critical"
+                >
+                  {data.stock.critical}
+                </dd>
+              </Link>
+              <Link
+                href="/app/inventory?estado=REORDER"
+                className="rounded-lg border border-border p-3 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="dash-reorder-link"
+              >
+                <dt className="text-xs text-muted-foreground">{t.reorder}</dt>
+                <dd
+                  className={`text-3xl font-semibold ${data.stock.reorder > 0 ? "text-warning" : ""}`}
+                  data-testid="dash-reorder"
+                >
+                  {data.stock.reorder}
+                </dd>
+              </Link>
             </dl>
-            {data.stock.criticalItems.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">{t.noCritical}</p>
-            ) : null}
-            <ul className="mt-3 space-y-1 text-sm">
-              {data.stock.criticalItems.map((item) => (
-                <li key={`${item.productId}-${item.warehouse}`} className="text-danger">
-                  {item.name} · {item.quantity} / mín. {item.minStock}
-                </li>
-              ))}
-            </ul>
+            <Link
+              href="/app/inventory"
+              className={`${buttonVariants({ variant: "outline", size: "sm" })} mt-4`}
+              data-testid="dash-stock-detail"
+            >
+              {t.viewDetail}
+            </Link>
           </Card>
         ) : null}
 

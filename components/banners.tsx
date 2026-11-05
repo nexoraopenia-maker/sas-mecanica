@@ -3,7 +3,7 @@ import { endImpersonationAction } from "@/app/actions/admin";
 import { restoreDemoAction } from "@/app/actions/auth";
 import { ActionForm } from "@/components/forms/action-form";
 import { Button, buttonVariants } from "@/components/ui/button";
-import type { AuthUser } from "@/lib/auth/can";
+import { can, type AuthUser } from "@/lib/auth/can";
 import { getEnv } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 import { salesWhatsappUrl } from "@/lib/sales-whatsapp";
@@ -62,6 +62,24 @@ export function Banners({ user }: { user: AuthUser }) {
             >
               {es.banner.billingPay}
             </Link>
+          </div>
+        </div>
+      ) : null}
+      {!user.isDemo && !user.fiscalReady ? (
+        <div
+          className={`${strip} border-warning/40 bg-warning/10 text-foreground`}
+          data-testid="fiscal-banner"
+        >
+          <div className={inner}>
+            <p>{es.banner.fiscalPending}</p>
+            {can(user, "settings:editar") ? (
+              <Link
+                href="/app/configuracion?tab=taller"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                {es.banner.fiscalComplete}
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

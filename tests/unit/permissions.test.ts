@@ -38,6 +38,9 @@ function userWith(permissions: ReadonlySet<PermissionKey>, over: Partial<AuthUse
     tenantName: "T",
     isDemo: false,
     demoExpiresAt: null,
+    businessType: "MIXED",
+    fiscalReady: true,
+    mustChangePassword: false,
     impersonation: null,
     ...over,
   };

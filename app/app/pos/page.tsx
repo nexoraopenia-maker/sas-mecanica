@@ -27,7 +27,11 @@ export default async function PosPage() {
       </div>
       <PosOfflineBanner />
       {session ? (
-        <PosTerminal tax={tax} maxDiscountPercent={user.maxDiscountPercent} />
+        <PosTerminal
+          tax={tax}
+          maxDiscountPercent={user.maxDiscountPercent}
+          fiscalReady={user.fiscalReady}
+        />
       ) : (
         <Card className="space-y-3">
           <p>{t.needCash}</p>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { requirePermission } from "@/lib/auth/can";
+import { can, requirePermission } from "@/lib/auth/can";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { es } from "@/lib/i18n/es";
 import { availableReports } from "@/server/services/reports";
@@ -22,9 +22,11 @@ export default async function ReportsPage() {
           </li>
         ))}
       </ul>
-      <Link href="/app/reports/ple" className="block" data-testid="ple-link">
-        <Card className="hover:bg-muted/40">{es.ple.link}</Card>
-      </Link>
+      {can(user, "accounting:ver") ? (
+        <Link href="/app/reports/ple" className="block" data-testid="ple-link">
+          <Card className="hover:bg-muted/40">{es.ple.link}</Card>
+        </Link>
+      ) : null}
     </>
   );
 }

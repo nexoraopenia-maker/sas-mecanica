@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   BarChart3,
   Bot,
+  BookOpen,
   Boxes,
   CreditCard,
   FileCheck2,
@@ -32,6 +33,7 @@ import { logoutAction } from "@/app/actions/auth";
 import { Logo } from "@/components/brand/logo";
 import { useOffline } from "@/components/offline/offline-provider";
 import { SyncBadge } from "@/components/offline/sync-badge";
+import { BranchSwitcher, type BranchContext } from "@/components/shell/branch-switcher";
 import { InstallButton } from "@/components/pwa/install-button";
 import { clearPrivateCaches } from "@/components/pwa/pwa-register";
 import { clearSnapshot } from "@/lib/offline/idb";
@@ -53,6 +55,7 @@ const ICONS = {
   inventory: Boxes,
   purchasing: Truck,
   billing: FileCheck2,
+  accounting: BookOpen,
   reports: BarChart3,
   subscription: CreditCard,
   ai: Bot,
@@ -88,6 +91,7 @@ export function AppShell({
   groups,
   settings,
   canSell,
+  branch,
   user,
   banners,
   children,
@@ -95,6 +99,7 @@ export function AppShell({
   groups: NavGroup[];
   settings: NavItem | null;
   canSell: boolean;
+  branch: BranchContext | null;
   user: { name: string; roleName: string; tenantName: string };
   banners: ReactNode;
   children: ReactNode;
@@ -103,10 +108,19 @@ export function AppShell({
   const offline = useOffline();
   // El cajón queda abierto solo en la ruta donde se abrió: al navegar se cierra sin efectos.
   const [openAt, setOpenAt] = useState<string | null>(null);
-  const open = openAt === pathname;
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    // Al navegar, el cajón móvil se cierra y no se reabre al volver a la misma ruta.
+    setSeenPath(pathname);
+    setOpenAt(null);
+  }
+  const open = openAt !== null;
   const setOpen = useCallback((value: boolean) => setOpenAt(value ? pathname : null), [pathname]);
   const all = [...groups.flatMap((g) => g.items), ...(settings ? [settings] : [])];
-  const current = all.find((item) => isActive(pathname, item.href));
+  // Gana la ruta más específica: /app/reports/ple marca «Libros PLE», no «Reportes».
+  const current = all
+    .filter((item) => isActive(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0];
 
   useEffect(() => {
     if (!open) return;
@@ -166,7 +180,7 @@ export function AppShell({
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = ICONS[item.icon];
-                  const active = isActive(pathname, item.href);
+                  const active = current?.href === item.href;
                   return (
                     <li key={item.href}>
                       <Link
@@ -188,8 +202,8 @@ export function AppShell({
           {settings ? (
             <Link
               href={settings.href}
-              className={linkClass(isActive(pathname, settings.href))}
-              aria-current={isActive(pathname, settings.href) ? "page" : undefined}
+              className={linkClass(current?.href === settings.href)}
+              aria-current={current?.href === settings.href ? "page" : undefined}
             >
               <Settings className="size-5 shrink-0" aria-hidden />
               {settings.label}
@@ -241,6 +255,7 @@ export function AppShell({
         <p className="min-w-0 flex-1 truncate text-lg font-semibold">
           {current?.label ?? user.tenantName}
         </p>
+        {branch ? <BranchSwitcher context={branch} /> : null}
         <SyncBadge />
         {settings ? (
           <Link

@@ -24,6 +24,12 @@ export interface AuthUser {
   tenantName: string | null;
   isDemo: boolean;
   demoExpiresAt: Date | null;
+  /** Rubro del negocio (decide qué bloques del inicio se muestran). */
+  businessType: "AUTOPARTS" | "WORKSHOP" | "MIXED";
+  /** Tiene RUC cargado (o es demo): puede emitir boletas y facturas electrónicas. */
+  fiscalReady: boolean;
+  /** Entró con una contraseña temporal: debe cambiarla antes de usar el sistema. */
+  mustChangePassword: boolean;
   /** Presente cuando un SuperAdmin opera dentro de un tenant (soporte). */
   impersonation: { sessionId: string; reason: string } | null;
 }

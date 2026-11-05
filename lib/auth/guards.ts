@@ -12,6 +12,8 @@ export async function requireUser(): Promise<AuthUser> {
 export async function requireTenantUser(): Promise<AuthUser> {
   const user = await requireUser();
   if (!user.tenantId) redirect(user.isSuperAdmin ? "/admin" : "/login");
+  // Con contraseña temporal no se usa nada del sistema (páginas ni acciones) hasta cambiarla.
+  if (user.mustChangePassword) redirect("/cambiar-clave");
   return user;
 }
 

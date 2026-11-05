@@ -188,6 +188,40 @@ No hay una tabla `ServiceOrder` aparte: la **orden de trabajo (OT)** ya es la or
   - **Sincroniza con la app abierta:** al volver la red, al reabrirla y cada 30 s mientras haya pendientes (no usa Background Sync). Los datos viajan por el servidor hacia la base de datos (Supabase), nunca directo desde el navegador.
   - **Seguridad en el dispositivo:** la cola y el catálogo son por usuario y negocio (otro usuario del mismo equipo no los ve ni los envía); al cerrar sesión se borran el catálogo y las páginas guardadas y **se conservan** las ventas pendientes (se avisa antes de salir). IndexedDB no va cifrada: usa el bloqueo de pantalla del dispositivo. Safari puede borrar los datos de sitios que no se usan por 7 días: instala la app.
 
+## Módulos, rubros y planes comerciales (SuperAdmin)
+
+- **Módulos efectivos de un tenant** = módulos incluidos en su plan − `tenantSettings.disabledModules` (la lista antigua `enabledModules` se sigue respetando). Catálogo y presets por rubro en `lib/modules.ts`.
+- **Cómo se oculta la interfaz:** `session-resolver` quita los permisos de los módulos apagados; menús, páginas y servicios ya consultan `can()`/`requirePermission`, así que se ocultan o se deniegan sin código extra. Siempre activos: Núcleo POS, Usuarios, Configuración y Auditoría.
+- **Panel:** `/admin/tenants/[id]` → «Rubros y Módulos Activos» (casillas: Núcleo POS, Facturación SUNAT, IA de inventario, WhatsApp, Taller/Servicios, etc.). El rubro (`BusinessType`) aplica un preset: **Autopartes** oculta Taller y Garantías en menú y dashboard; **Mixto/Taller** los muestran.
+- **Planes** (códigos `basic`/`pro`/`enterprise`):
+
+  | Plan     | Incluye                                                         |
+  | -------- | --------------------------------------------------------------- |
+  | Básico   | Núcleo POS, facturación, inventario                             |
+  | Standard | + Taller, Compras, WhatsApp, Contabilidad (PLE), multi-sucursal |
+  | Premium  | + IA de inventario                                              |
+
+  Al subir de plan, los módulos nuevos se activan automáticamente. Los límites de plan cuentan solo sucursales y almacenes activos.
+
+## Creación rápida de cuentas (sin SUNAT)
+
+- El SuperAdmin crea el tenant con correo del administrador y **contraseña temporal** (generada, nunca guardada ni auditada en claro). El RUC es opcional.
+- Primer ingreso: `requireTenantUser` redirige a `/cambiar-clave` hasta definir una contraseña propia.
+- Sin RUC (`fiscalReady = false`) el POS solo emite **Nota de venta** y se muestra un banner de facturación. Después se actualizan RUC oficial y correo corporativo desde el SuperAdmin o Configuración; el RUC queda bloqueado una vez emitidos comprobantes fiscales. La condición activo/habido del RUC no se verifica en línea (se valida con el OSE).
+
+## Escáner de cámara en el POS
+
+- Botón de cámara en el mostrador (celular, tablet, laptop; requiere HTTPS y permiso de cámara). Lee EAN/UPC, Code 128 y QR.
+- Motor: `BarcodeDetector` nativo si existe; si no, `@zxing/library` (carga diferida). Un antirrebote de ventana deslizante evita lecturas duplicadas.
+- Autocompletado flotante por nombre, SKU o medida de llanta.
+- Prueba e2e: proyecto Playwright `camera` con cámara falsa de Chromium (`tests/fixtures/ean13.mjpeg`; regenerar con `node scripts/generate-scan-fixture.mjs`).
+
+## Sucursales y PLE 14.1/8.1
+
+- Sucursales y almacenes en `/app/configuracion` (pestaña Sucursales); al crear una sucursal se crea su almacén por defecto. La sucursal activa se elige en la barra superior (`user.defaultBranchId`).
+- PLE: permisos del módulo Contabilidad, vista previa de validación, exportación TXT/ZIP para el contador y evento de auditoría `ple.exported`.
+- Migraciones nuevas (con `down.sql`): `20261105120000_module_enum_values` y `20261105120100_modules_rubros_plans`.
+
 ## Migraciones
 
 - Nunca edites una migración ya aplicada.

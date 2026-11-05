@@ -3,7 +3,7 @@ import { Prisma, withTenant } from "@/lib/db";
 import { limaDay, startOfLimaDay } from "@/lib/reports/period";
 import { OPEN_WORK_ORDER_STATUSES } from "@/lib/workshop/state";
 import { computeAiMetrics, type AiMetrics } from "./reports";
-import { listStock, type StockRow } from "./stock-queries";
+import { listStock } from "./stock-queries";
 
 const D = (value: string | number | Prisma.Decimal | null | undefined): Prisma.Decimal =>
   new Prisma.Decimal(value ?? 0);
@@ -16,13 +16,7 @@ export interface DashboardData {
     yesterdayTotal: string;
     monthTotal: string;
   } | null;
-  stock: {
-    critical: number;
-    reorder: number;
-    criticalItems: Array<
-      Pick<StockRow, "productId" | "sku" | "name" | "quantity" | "minStock" | "warehouse">
-    >;
-  } | null;
+  stock: { critical: number; reorder: number } | null;
   workshop: {
     active: number;
     overdue: number;
@@ -84,8 +78,10 @@ export async function getDashboard(
       };
     }
 
+    // Una tienda de autopartes (rubro comercial) no ve Taller ni Garantías aunque tenga el permiso.
+    const sellsServices = actor.businessType !== "AUTOPARTS";
     let workshop: DashboardData["workshop"] = null;
-    if (can(actor, "workshop:ver")) {
+    if (sellsServices && can(actor, "workshop:ver")) {
       const grouped = await tx.workOrder.groupBy({
         by: ["status"],
         where: { status: { in: OPEN_WORK_ORDER_STATUSES } },
@@ -102,7 +98,7 @@ export async function getDashboard(
     }
 
     let warranties: DashboardData["warranties"] = null;
-    if (can(actor, "warranties:ver")) {
+    if (sellsServices && can(actor, "warranties:ver")) {
       const where = {
         status: "ACTIVE" as const,
         expiresAt: { gte: now, lte: new Date(now.getTime() + 30 * DAY) },
@@ -153,17 +149,6 @@ export async function getDashboard(
       ? {
           critical: stockRows.filter((r) => r.status === "CRITICAL").length,
           reorder: stockRows.filter((r) => r.status === "REORDER").length,
-          criticalItems: stockRows
-            .filter((r) => r.status === "CRITICAL")
-            .slice(0, 6)
-            .map((r) => ({
-              productId: r.productId,
-              sku: r.sku,
-              name: r.name,
-              quantity: r.quantity,
-              minStock: r.minStock,
-              warehouse: r.warehouse,
-            })),
         }
       : null;
     return { sales, stock, workshop, warranties, receivables, ai };

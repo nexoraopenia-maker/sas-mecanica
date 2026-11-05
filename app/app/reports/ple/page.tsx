@@ -2,15 +2,16 @@ import { ZodError } from "zod";
 import { registerPurchaseInvoiceAction, voidPurchaseInvoiceAction } from "@/app/actions/ple";
 import { ActionForm } from "@/components/forms/action-form";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/input";
+import Link from "next/link";
 import { can, requirePermission } from "@/lib/auth/can";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { es } from "@/lib/i18n/es";
 import { limaYearMonth, pleDate } from "@/lib/ple/format";
 import { PURCHASE_DOC_TYPES } from "@/lib/ple/spec";
-import { listPurchaseInvoices, previewPle } from "@/server/services/ple";
+import { listPurchaseInvoices, previewPle, type PleSampleRow } from "@/server/services/ple";
 
 const MONTHS = [
   "Enero",
@@ -34,7 +35,7 @@ export default async function PlePage({
 }) {
   const query = await searchParams;
   const user = await requireTenantUser();
-  requirePermission(user, "reports:ver");
+  requirePermission(user, "accounting:ver");
   const t = es.ple;
   const now = limaYearMonth(new Date());
   const input = { year: query.anio ?? now.year, month: query.mes ?? now.month };
@@ -46,10 +47,19 @@ export default async function PlePage({
     if (!(error instanceof ZodError)) throw error;
     periodError = error.issues[0]?.message ?? "Periodo inválido";
   }
-  const invoices =
-    preview && can(user, "purchasing:ver") ? await listPurchaseInvoices(user, input) : [];
+  const invoices = preview ? await listPurchaseInvoices(user, input) : [];
   const qs = preview ? `anio=${preview.period.year}&mes=${preview.period.month}` : "";
   const years = Array.from({ length: 6 }, (_, i) => now.year - i);
+  const shift = (delta: number) => {
+    if (!preview) return null;
+    const index = preview.period.year * 12 + (preview.period.month - 1) + delta;
+    return `anio=${Math.floor(index / 12)}&mes=${(index % 12) + 1}`;
+  };
+  const blocked = preview
+    ? preview.sales.invalidRows + preview.purchases.invalidRows > 0 ||
+      !preview.ruc ||
+      preview.isDemoRuc
+    : true;
 
   return (
     <div className="space-y-4" data-testid="ple">
@@ -82,6 +92,24 @@ export default async function PlePage({
           <Button type="submit" data-testid="ple-show">
             {t.show}
           </Button>
+          {preview ? (
+            <div className="flex gap-2">
+              <Link
+                href={`/app/reports/ple?${shift(-1)}`}
+                className={buttonVariants({ variant: "outline" })}
+                data-testid="ple-prev"
+              >
+                ← {t.prevMonth}
+              </Link>
+              <Link
+                href={`/app/reports/ple?${shift(1)}`}
+                className={buttonVariants({ variant: "outline" })}
+                data-testid="ple-next"
+              >
+                {t.nextMonth} →
+              </Link>
+            </div>
+          ) : null}
         </form>
       </Card>
 
@@ -109,7 +137,17 @@ export default async function PlePage({
                   {preview.sales.excludedRejected} {t.excludedRejected}
                 </p>
               ) : null}
-              {preview.ruc && !preview.isDemoRuc ? (
+              <InvalidNote
+                count={preview.sales.invalidRows}
+                error={preview.sales.firstError}
+                testId="ple-sales-invalid"
+              />
+              <SampleTable
+                rows={preview.sales.sample}
+                total={preview.sales.rows}
+                testId="ple-sales-sample"
+              />
+              {preview.ruc && !preview.isDemoRuc && preview.sales.invalidRows === 0 ? (
                 <a
                   className="mt-3 inline-flex h-12 items-center rounded-lg border border-border px-4 text-sm"
                   href={`/app/reports/ple/export?libro=14.1&${qs}`}
@@ -127,7 +165,17 @@ export default async function PlePage({
               {preview.purchases.rows === 0 ? (
                 <p className="text-sm text-muted-foreground">{t.noRows}</p>
               ) : null}
-              {preview.ruc && !preview.isDemoRuc ? (
+              <InvalidNote
+                count={preview.purchases.invalidRows}
+                error={preview.purchases.firstError}
+                testId="ple-purchases-invalid"
+              />
+              <SampleTable
+                rows={preview.purchases.sample}
+                total={preview.purchases.rows}
+                testId="ple-purchases-sample"
+              />
+              {preview.ruc && !preview.isDemoRuc && preview.purchases.invalidRows === 0 ? (
                 <a
                   className="mt-3 inline-flex h-12 items-center rounded-lg border border-border px-4 text-sm"
                   href={`/app/reports/ple/export?libro=8.1&${qs}`}
@@ -139,7 +187,20 @@ export default async function PlePage({
             </Card>
           </div>
 
-          {can(user, "purchasing:crear") ? (
+          {!blocked ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">{t.zipHelp}</p>
+              <a
+                className={buttonVariants({ size: "default" })}
+                href={`/app/reports/ple/export?libro=zip&${qs}`}
+                data-testid="ple-download-zip"
+              >
+                {t.downloadZip}
+              </a>
+            </div>
+          ) : null}
+
+          {can(user, "accounting:crear") ? (
             <Card>
               <CardTitle>{t.registerTitle}</CardTitle>
               <ActionForm
@@ -215,7 +276,7 @@ export default async function PlePage({
                       {pleDate(inv.issueDate)} · {inv.docTypeCode} {inv.series}-{inv.number} ·{" "}
                       {inv.supplierName ?? "—"} · S/ {inv.total.toFixed(2)}
                     </span>
-                    {can(user, "purchasing:eliminar") ? (
+                    {can(user, "accounting:eliminar") ? (
                       <ActionForm
                         action={voidPurchaseInvoiceAction}
                         submitLabel={t.void}
@@ -232,6 +293,65 @@ export default async function PlePage({
             )}
           </Card>
         </>
+      ) : null}
+    </div>
+  );
+}
+
+function InvalidNote({
+  count,
+  error,
+  testId,
+}: {
+  count: number;
+  error: string | null;
+  testId: string;
+}) {
+  if (count === 0) return null;
+  return (
+    <Alert tone="error" data-testid={testId}>
+      {count} fila(s) no cumplen la estructura oficial de SUNAT y el archivo no se genera hasta
+      corregirlas. {error ?? ""}
+    </Alert>
+  );
+}
+
+function SampleTable({
+  rows,
+  total,
+  testId,
+}: {
+  rows: PleSampleRow[];
+  total: number;
+  testId: string;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-3 overflow-x-auto" data-testid={testId}>
+      <table className="w-full min-w-[22rem] text-left text-xs">
+        <thead className="text-muted-foreground">
+          <tr>
+            <th className="py-1 pr-2 font-medium">Fecha</th>
+            <th className="py-1 pr-2 font-medium">Comprobante</th>
+            <th className="py-1 pr-2 font-medium">Cliente / proveedor</th>
+            <th className="py-1 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index} className="border-t border-border">
+              <td className="py-1 pr-2">{row.date}</td>
+              <td className="py-1 pr-2">{row.document}</td>
+              <td className="max-w-40 truncate py-1 pr-2">{row.party}</td>
+              <td className="py-1 text-right">{row.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {total > rows.length ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Primeras {rows.length} de {total} filas.
+        </p>
       ) : null}
     </div>
   );

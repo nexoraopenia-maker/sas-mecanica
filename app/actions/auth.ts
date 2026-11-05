@@ -7,6 +7,7 @@ import { getRequestMeta } from "@/lib/http";
 import { verifyCaptcha } from "@/server/integrations/turnstile";
 import {
   acceptInvite,
+  changeOwnPassword,
   confirmMfaEnrollment,
   getMfaStage,
   login,
@@ -140,6 +141,28 @@ export async function restoreDemoAction(_previous: ActionState): Promise<ActionS
     const user = await requireUser();
     const demo = await restoreDemo(user, await getRequestMeta());
     await startSession({ sub: demo.userId, tid: demo.tenantId, sv: 1, mfa: true });
+    return { redirectTo: "/app" };
+  });
+}
+
+/** Cambio obligatorio de la contraseña temporal (primer ingreso de una cuenta creada por el SuperAdmin). */
+export async function changeTemporaryPasswordAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    // No usa requireTenantUser: esa guarda manda a esta misma pantalla mientras la clave sea temporal.
+    const user = await requireUser();
+    if (field(formData, "password") !== field(formData, "confirm"))
+      return { error: "Las contraseñas no coinciden" };
+    await changeOwnPassword(
+      { userId: user.userId, tenantId: user.tenantId },
+      { current: field(formData, "current"), password: field(formData, "password") },
+      await getRequestMeta(),
+    );
+    // La versión de sesión cambió: se emite una nueva para seguir adentro.
+    const claims = await readSessionClaims();
+    if (claims) await startSession({ ...claims, sv: claims.sv + 1 });
     return { redirectTo: "/app" };
   });
 }

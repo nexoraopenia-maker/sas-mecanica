@@ -1,0 +1,2 @@
+-- PostgreSQL no puede quitar valores de un enum. Para revertir: reconstruir el tipo sin esos valores
+-- (tras borrar las filas de `permissions` y `role_permissions` que los usan y vaciar `plans.includedModules`).

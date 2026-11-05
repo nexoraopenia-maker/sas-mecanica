@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { DomainError } from "@/lib/errors";
-import { exportPle } from "@/server/services/ple";
+import { getRequestMeta } from "@/lib/http";
+import { exportPle, exportPleZip } from "@/server/services/ple";
 import { getCurrentUser } from "@/server/services/session";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +14,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const url = new URL(request.url);
   try {
-    const file = await exportPle(user, {
-      book: url.searchParams.get("libro"),
-      year: url.searchParams.get("anio"),
-      month: url.searchParams.get("mes"),
-    });
+    const meta = await getRequestMeta();
+    const period = { year: url.searchParams.get("anio"), month: url.searchParams.get("mes") };
+    if (url.searchParams.get("libro") === "zip") {
+      const zip = await exportPleZip(user, period, meta);
+      return new NextResponse(new Uint8Array(zip.content), {
+        headers: {
+          "content-type": "application/zip",
+          "content-disposition": `attachment; filename="${zip.fileName}"`,
+          "cache-control": "no-store",
+        },
+      });
+    }
+    const file = await exportPle(user, { book: url.searchParams.get("libro"), ...period }, meta);
     return new NextResponse(new Uint8Array(file.content), {
       headers: {
         "content-type": "text/plain; charset=windows-1252",

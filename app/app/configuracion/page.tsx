@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiTab } from "@/components/settings/ai-tab";
 import { BillingTab } from "@/components/settings/billing-tab";
+import { BranchesTab } from "@/components/settings/branches-tab";
 import { CompanyTab } from "@/components/settings/company-tab";
 import { PlanTab } from "@/components/settings/plan-tab";
 import { RolesTab } from "@/components/settings/roles-tab";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { id: "usuarios", allowed: (u: AuthUser) => can(u, "users:ver") },
+  { id: "sucursales", allowed: (u: AuthUser) => can(u, "branches:ver") },
   { id: "roles", allowed: (u: AuthUser) => can(u, "users:ver") },
   { id: "taller", allowed: (u: AuthUser) => can(u, "settings:ver") },
   { id: "facturacion", allowed: (u: AuthUser) => can(u, "billing:ver") },
@@ -70,6 +72,7 @@ export default async function ConfigurationPage({
         })}
       </nav>
       {current.id === "usuarios" ? <UsersTab user={user} /> : null}
+      {current.id === "sucursales" ? <BranchesTab user={user} /> : null}
       {current.id === "roles" ? <RolesTab user={user} /> : null}
       {current.id === "taller" ? <CompanyTab user={user} /> : null}
       {current.id === "facturacion" ? <BillingTab user={user} /> : null}

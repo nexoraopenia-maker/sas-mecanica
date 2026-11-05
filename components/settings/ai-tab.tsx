@@ -52,45 +52,63 @@ export async function AiTab({
           submitLabel={ts.switchesSave}
           className="space-y-3"
         >
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              name="aiAgentEnabled"
-              defaultChecked={sw.aiAgentEnabled}
-              disabled={!canSwitch}
-              className="mt-1 size-5"
-            />
-            <span>
-              <span className="font-medium">{ts.switchAgent}</span>
-              <span className="block text-sm text-muted-foreground">{ts.switchAgentHelp}</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              name="whatsappNoticesEnabled"
-              defaultChecked={sw.whatsappNoticesEnabled}
-              disabled={!canSwitch}
-              className="mt-1 size-5"
-            />
-            <span>
-              <span className="font-medium">{ts.switchWhatsapp}</span>
-              <span className="block text-sm text-muted-foreground">{ts.switchWhatsappHelp}</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              name="humanApproval"
-              defaultChecked={sw.humanApproval}
-              disabled={!canSwitch}
-              className="mt-1 size-5"
-            />
-            <span>
-              <span className="font-medium">{ts.switchApproval}</span>
-              <span className="block text-sm text-muted-foreground">{ts.switchApprovalHelp}</span>
-            </span>
-          </label>
+          {can(user, "ai_agent:editar") ? (
+            <>
+              <input type="hidden" name="aiPresent" value="1" />
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="aiAgentEnabled"
+                  defaultChecked={sw.aiAgentEnabled}
+                  disabled={!canSwitch}
+                  className="mt-1 size-5"
+                />
+                <span>
+                  <span className="font-medium">{ts.switchAgent}</span>
+                  <span className="block text-sm text-muted-foreground">{ts.switchAgentHelp}</span>
+                </span>
+              </label>
+            </>
+          ) : null}
+          {can(user, "whatsapp:editar") ? (
+            <>
+              <input type="hidden" name="whatsappPresent" value="1" />
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="whatsappNoticesEnabled"
+                  defaultChecked={sw.whatsappNoticesEnabled}
+                  disabled={!canSwitch}
+                  className="mt-1 size-5"
+                />
+                <span>
+                  <span className="font-medium">{ts.switchWhatsapp}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {ts.switchWhatsappHelp}
+                  </span>
+                </span>
+              </label>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground" data-testid="whatsapp-off">
+              {ts.whatsappOff}
+            </p>
+          )}
+          {can(user, "ai_agent:editar") ? (
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                name="humanApproval"
+                defaultChecked={sw.humanApproval}
+                disabled={!canSwitch}
+                className="mt-1 size-5"
+              />
+              <span>
+                <span className="font-medium">{ts.switchApproval}</span>
+                <span className="block text-sm text-muted-foreground">{ts.switchApprovalHelp}</span>
+              </span>
+            </label>
+          ) : null}
         </ActionForm>
       </Card>
 

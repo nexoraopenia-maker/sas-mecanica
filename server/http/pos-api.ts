@@ -35,6 +35,11 @@ export async function posApi(
       { error: "Sesión no válida", code: "UNAUTHORIZED" },
       { status: 401, headers },
     );
+  if (user.mustChangePassword)
+    return NextResponse.json(
+      { error: "Cambia tu contraseña temporal para continuar", code: "PASSWORD_CHANGE_REQUIRED" },
+      { status: 403, headers },
+    );
   try {
     return NextResponse.json(await handler({ ...user, tenantId: user.tenantId }), { headers });
   } catch (raw) {

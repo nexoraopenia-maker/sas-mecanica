@@ -1,5 +1,11 @@
+import { z } from "zod";
 import { generateToken, hashToken } from "@/lib/auth/secure-token";
-import { hashPassword, verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
+import {
+  hashPassword,
+  passwordSchema,
+  verifyAgainstDummy,
+  verifyPassword,
+} from "@/lib/auth/password";
 import { generateTotpSecret, otpauthUri, verifyTotp } from "@/lib/auth/totp";
 import {
   consumeRateLimit,
@@ -346,6 +352,7 @@ export async function resetPassword(
       where: { id: row.userId },
       data: {
         passwordHash,
+        mustChangePassword: false,
         sessionVersion: { increment: 1 },
         failedLoginCount: 0,
         lockedUntil: null,
@@ -376,7 +383,7 @@ export async function acceptInvite(
     if (consumed.count !== 1) throw new InvalidTokenError();
     await tx.user.update({
       where: { id: row.userId },
-      data: { name, passwordHash, status: "ACTIVE" },
+      data: { name, passwordHash, status: "ACTIVE", mustChangePassword: false },
     });
     await recordAudit(
       tx,
@@ -406,4 +413,49 @@ export async function describeInvite(
   } catch {
     return null;
   }
+}
+
+const changeOwnPasswordSchema = z
+  .object({
+    current: z.string().min(1, "Ingresa tu contraseña temporal"),
+    password: passwordSchema,
+  })
+  .refine((v) => v.current !== v.password, {
+    message: "La contraseña nueva debe ser distinta de la temporal",
+    path: ["password"],
+  });
+
+/**
+ * Cambio de la contraseña temporal entregada por el SuperAdmin. Exige la actual (la temporal), limita los
+ * intentos y deja la cuenta lista: el resto de sesiones del usuario se revoca y esta sigue vigente.
+ */
+export async function changeOwnPassword(
+  actor: { userId: string; tenantId: string | null },
+  input: { current: string; password: string },
+  meta: RequestMeta,
+): Promise<void> {
+  if (!actor.tenantId) throw new InvalidCredentialsError();
+  const { current, password } = changeOwnPasswordSchema.parse(input);
+  await enforceRateLimit("password-change", actor.userId, 8, 900);
+  const hash = await hashPassword(password);
+  await withTenant(actor.tenantId, async (tx) => {
+    const row = await tx.user.findFirst({ where: { id: actor.userId } });
+    if (!row?.passwordHash || !(await verifyPassword(current, row.passwordHash)))
+      throw new InvalidCredentialsError();
+    await tx.user.update({
+      where: { id: row.id },
+      data: { passwordHash: hash, mustChangePassword: false, sessionVersion: { increment: 1 } },
+    });
+    await recordAudit(
+      tx,
+      { actorType: "USER", actorUserId: row.id, ...meta },
+      {
+        action: "auth.password_changed",
+        entityType: "user",
+        entityId: row.id,
+        after: { temporaryPasswordReplaced: row.mustChangePassword },
+      },
+    );
+  });
+  invalidateAuthCache();
 }

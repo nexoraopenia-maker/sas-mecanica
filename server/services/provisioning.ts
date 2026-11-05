@@ -1,5 +1,5 @@
 import { ROLE_TEMPLATES, permissionKey } from "@/lib/auth/permissions";
-import type { Prisma } from "@/lib/db";
+import type { AppModule, Prisma } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
 
 type Db = Prisma.TransactionClient;
@@ -23,6 +23,9 @@ export interface ProvisionInput {
   /** Solo SuperAdmin puede usar planes ocultos (demo). */
   allowHiddenPlan?: boolean;
   aiMonthlyTokenCap?: number;
+  businessType?: "AUTOPARTS" | "WORKSHOP" | "MIXED";
+  /** Módulos del plan que arrancan apagados para este cliente. */
+  disabledModules?: AppModule[];
 }
 
 export interface ProvisionedTenant {
@@ -62,6 +65,7 @@ export async function provisionTenantBase(
       contactEmail: input.contactEmail ?? null,
       planId: plan.id,
       isDemo: input.isDemo ?? false,
+      businessType: input.businessType ?? "MIXED",
       demoExpiresAt: input.demoExpiresAt ?? null,
       demoSessionKey: input.demoSessionKey ?? null,
     },
@@ -69,7 +73,11 @@ export async function provisionTenantBase(
   const tenantId = tenant.id;
 
   await db.tenantSettings.create({
-    data: { tenantId, aiMonthlyTokenCap: input.aiMonthlyTokenCap ?? null },
+    data: {
+      tenantId,
+      aiMonthlyTokenCap: input.aiMonthlyTokenCap ?? null,
+      disabledModules: input.disabledModules ?? [],
+    },
   });
   const now = new Date();
   await db.subscription.create({

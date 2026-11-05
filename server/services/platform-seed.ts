@@ -14,7 +14,16 @@ const BASE_MODULES: AppModule[] = [
   "SETTINGS",
   "AUDIT",
 ];
-const PRO_MODULES: AppModule[] = [...BASE_MODULES, "WORKSHOP", "PURCHASING"];
+/** Standard: taller, compras, WhatsApp, libros PLE y multi-sucursal. */
+const PRO_MODULES: AppModule[] = [
+  ...BASE_MODULES,
+  "WORKSHOP",
+  "PURCHASING",
+  "WHATSAPP",
+  "ACCOUNTING",
+  "BRANCHES",
+];
+/** Premium: todo, incluida la IA de inventario y compras. */
 const ALL_MODULES: AppModule[] = [...PRO_MODULES, "AI_AGENT"];
 
 /** Techo de tokens de IA para cuentas demo (también aplicado por resolveAiPolicy). */
@@ -24,7 +33,7 @@ const PLANS = [
   {
     code: "basic",
     name: "Básico",
-    description: "1 sucursal y 3 usuarios",
+    description: "Punto de venta, caja, inventario, facturación SUNAT y reportes",
     priceMonthly: "99.00",
     maxBranches: 1,
     maxUsers: 3,
@@ -40,8 +49,8 @@ const PLANS = [
   },
   {
     code: "pro",
-    name: "Pro",
-    description: "Multialmacén, taller completo y alertas de stock",
+    name: "Standard",
+    description: "Taller completo, compras, WhatsApp, libros PLE y hasta 3 sucursales",
     priceMonthly: "249.00",
     maxBranches: 3,
     maxUsers: 10,
@@ -57,8 +66,8 @@ const PLANS = [
   },
   {
     code: "enterprise",
-    name: "Enterprise / IA",
-    description: "Usuarios ilimitados y agente de compras con IA",
+    name: "Premium",
+    description: "Todo incluido: IA de inventario y compras, sucursales y usuarios ilimitados",
     priceMonthly: "599.00",
     maxBranches: null,
     maxUsers: null,

@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Camera } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { BarcodeScanner, type ScanResult } from "@/components/pos/barcode-scanner";
 import { useOffline } from "@/components/offline/offline-provider";
+import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { es } from "@/lib/i18n/es";
 import { fetchSuggestions, mergeProducts } from "@/lib/pos/pos-fetch";
 import { highlightParts, normalizeText } from "@/lib/pos/search";
+import { matchScan, scanCandidates } from "@/lib/pos/scan";
 import type { PosProduct } from "@/lib/pos/types";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +54,7 @@ export function ProductSearch({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [added, setAdded] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -106,6 +111,30 @@ export function ProductSearch({
     inputRef.current?.focus();
   }
 
+  /** Código leído con la cámara: coincidencia exacta de SKU, código de barras u OEM (primero en el dispositivo, luego en el servidor). */
+  const resolveScan = useCallback(
+    async (raw: string): Promise<ScanResult> => {
+      const candidates = scanCandidates(raw);
+      if (candidates.length === 0) return { kind: "ignored" };
+      let product = offline.catalog ? matchScan(offline.catalog.products, candidates) : null;
+      if (!product && offline.online) {
+        for (const candidate of candidates.slice(0, 3)) {
+          try {
+            product = matchScan(await fetchSuggestions(candidate), candidates);
+          } catch {
+            break;
+          }
+          if (product) break;
+        }
+      }
+      if (!product) return { kind: "not_found", code: candidates[0] ?? raw };
+      onPick(product);
+      setAdded(product.name);
+      return { kind: "added", label: product.name };
+    },
+    [offline.catalog, offline.online, onPick],
+  );
+
   /** Enter: elige la sugerencia marcada o una coincidencia exacta de SKU/código (flujo del lector de barras). */
   async function submit() {
     if (trimmed.length === 0) return;
@@ -155,31 +184,46 @@ export function ProductSearch({
   return (
     <div className="relative">
       <Label htmlFor="scan">{t.scan}</Label>
-      <Input
-        id="scan"
-        ref={inputRef}
-        autoFocus
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setOpen(true);
-          setActive(-1);
-          setNotice(null);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={onKeyDown}
-        placeholder={t.scanHelp}
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        enterKeyHint="search"
-      />
+      <div className="flex gap-2">
+        <Input
+          id="scan"
+          ref={inputRef}
+          autoFocus
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            setActive(-1);
+            setNotice(null);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={onKeyDown}
+          placeholder={t.scanHelp}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="search"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          aria-label={es.scanner.open}
+          title={es.scanner.open}
+          onClick={() => setScanning(true)}
+          data-testid="scan-camera"
+        >
+          <Camera />
+        </Button>
+      </div>
+      <BarcodeScanner open={scanning} onClose={() => setScanning(false)} onCode={resolveScan} />
       <p className="sr-only" role="status" aria-live="polite">
         {added ? `${t.added}: ${added}` : ""}
       </p>

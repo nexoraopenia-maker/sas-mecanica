@@ -272,9 +272,16 @@ export async function automationSwitchesAction(
     await updateAutomationSwitches(
       await requireTenantUser(),
       {
-        aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
-        whatsappNoticesEnabled: formData.get("whatsappNoticesEnabled") === "on",
-        humanApproval: formData.get("humanApproval") === "on",
+        ...(formData.has("aiPresent")
+          ? {
+              aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
+              humanApproval: formData.get("humanApproval") === "on",
+            }
+          : {}),
+        // El interruptor solo existe en pantalla si el cliente tiene WhatsApp; sin él no se toca ese ajuste.
+        ...(formData.has("whatsappPresent")
+          ? { whatsappNoticesEnabled: formData.get("whatsappNoticesEnabled") === "on" }
+          : {}),
       },
       await getRequestMeta(),
     );

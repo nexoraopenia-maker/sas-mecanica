@@ -1,4 +1,5 @@
 import { Banners } from "@/components/banners";
+import { getBranchContext } from "@/server/services/branches";
 import { OfflineProvider } from "@/components/offline/offline-provider";
 import { AppShell, type NavGroup, type NavItem } from "@/components/shell/app-shell";
 import { can, type AuthUser } from "@/lib/auth/can";
@@ -6,7 +7,11 @@ import type { PermissionKey } from "@/lib/auth/permissions";
 import { requireTenantUser } from "@/lib/auth/guards";
 import { es } from "@/lib/i18n/es";
 
-type Entry = NavItem & { needs: PermissionKey[] };
+type Entry = NavItem & {
+  needs: PermissionKey[];
+  /** Rubros para los que la opción no se ofrece (p. ej. una tienda de autopartes no usa Taller). */
+  hideFor?: Array<AuthUser["businessType"]>;
+};
 
 const GROUPS: Array<{ label: string; items: Entry[] }> = [
   {
@@ -28,7 +33,13 @@ const GROUPS: Array<{ label: string; items: Entry[] }> = [
   {
     label: es.nav.groupWorkshop,
     items: [
-      { href: "/app/workshop", label: es.nav.workshop, icon: "workshop", needs: ["workshop:ver"] },
+      {
+        href: "/app/workshop",
+        label: es.nav.workshop,
+        icon: "workshop",
+        needs: ["workshop:ver"],
+        hideFor: ["AUTOPARTS"],
+      },
       {
         href: "/app/customers",
         label: es.nav.customers,
@@ -66,6 +77,12 @@ const GROUPS: Array<{ label: string; items: Entry[] }> = [
     items: [
       { href: "/app/billing", label: es.nav.billing, icon: "billing", needs: ["billing:ver"] },
       { href: "/app/reports", label: es.nav.reports, icon: "reports", needs: ["reports:ver"] },
+      {
+        href: "/app/reports/ple",
+        label: es.nav.ple,
+        icon: "accounting",
+        needs: ["accounting:ver"],
+      },
     ],
   },
 ];
@@ -74,13 +91,19 @@ function visibleGroups(user: AuthUser): NavGroup[] {
   return GROUPS.map((group) => ({
     label: group.label,
     items: group.items
-      .filter((item) => item.needs.every((permission) => can(user, permission)))
+      .filter(
+        (item) =>
+          item.needs.every((permission) => can(user, permission)) &&
+          !item.hideFor?.includes(user.businessType),
+      )
       .map(({ href, label, icon }) => ({ href, label, icon })),
   })).filter((group) => group.items.length > 0);
 }
 
 export default async function TenantLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireTenantUser();
+  // La sucursal de trabajo solo se consulta con el módulo Multi-sucursal (una consulta menos para el resto).
+  const branch = can(user, "branches:ver") ? await getBranchContext(user) : null;
   const settings: NavItem | null =
     can(user, "settings:ver") ||
     can(user, "users:ver") ||
@@ -97,6 +120,7 @@ export default async function TenantLayout({ children }: Readonly<{ children: Re
         groups={visibleGroups(user)}
         settings={settings}
         canSell={can(user, "pos:crear")}
+        branch={branch}
         user={{
           name: user.name,
           roleName: user.roleName ?? "",

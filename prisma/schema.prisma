@@ -75,6 +75,17 @@ enum AppModule {
   REPORTS
   SETTINGS
   AUDIT
+  // Módulos comerciales que el SuperAdmin activa por cliente y por plan.
+  WHATSAPP
+  ACCOUNTING
+  BRANCHES
+}
+
+/// Rubro del negocio: define qué módulos y bloques del inicio se ofrecen por defecto.
+enum BusinessType {
+  AUTOPARTS
+  WORKSHOP
+  MIXED
 }
 
 enum PermissionAction {
@@ -494,6 +505,7 @@ model Tenant {
   purgeAfter         DateTime?    @db.Timestamptz(3)
   planId             String       @db.Uuid
   isDemo             Boolean      @default(false)
+  businessType       BusinessType @default(MIXED)
   demoExpiresAt      DateTime?    @db.Timestamptz(3)
   demoSessionKey     String?      @unique
   createdAt          DateTime     @default(now()) @db.Timestamptz(3)
@@ -558,7 +570,10 @@ model TenantSettings {
   staffHourlyCost         Decimal        @default(15) @db.Decimal(10, 2)
   usdExchangeRate         Decimal        @default(3.75) @db.Decimal(8, 4)
   deadStockDays           Int            @default(90)
+  // Lista blanca heredada (vacía = todos los del plan). El SuperAdmin ahora usa `disabledModules`.
   enabledModules          AppModule[]
+  // Módulos del plan que el SuperAdmin apagó para este cliente. Al subir de plan se activan solos los nuevos.
+  disabledModules         AppModule[]
 
   // Inventario
   allowNegativeStock Boolean @default(false)
@@ -805,6 +820,8 @@ model User {
   failedLoginCount    Int        @default(0)
   lockedUntil         DateTime?  @db.Timestamptz(3)
   lastLoginAt         DateTime?  @db.Timestamptz(3)
+  // Contraseña temporal entregada por el SuperAdmin: debe cambiarla al primer ingreso.
+  mustChangePassword  Boolean    @default(false)
   createdAt           DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime   @updatedAt @db.Timestamptz(3)
   deletedAt           DateTime?  @db.Timestamptz(3)

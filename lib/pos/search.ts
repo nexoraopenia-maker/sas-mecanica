@@ -91,6 +91,11 @@ export class LocalCatalog {
     return this.entries.length;
   }
 
+  /** Todos los productos del catálogo local (para coincidencias exactas de código). */
+  get products(): PosProduct[] {
+    return this.entries.map((entry) => entry.product);
+  }
+
   search(query: string, limit = 8): PosProduct[] {
     const prepared = prepareQuery(query);
     if (!prepared) return [];

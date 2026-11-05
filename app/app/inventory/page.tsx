@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import {
   adjustStockAction,
@@ -28,7 +29,15 @@ const STATUS_STYLE: Record<StockStatus, string> = {
 };
 const DOT: Record<StockStatus, string> = { CRITICAL: "🔴", REORDER: "🟡", OPTIMAL: "🟢" };
 
-export default async function InventoryPage() {
+const STATUS_FILTERS = ["CRITICAL", "REORDER", "OPTIMAL"] as const;
+
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ estado?: string }>;
+}) {
+  const { estado } = await searchParams;
+  const statusFilter = STATUS_FILTERS.find((value) => value === estado);
   const user = await requireTenantUser();
   requirePermission(user, "inventory:ver");
   const t = es.inventory;
@@ -37,7 +46,7 @@ export default async function InventoryPage() {
   const [summary, alerts, stock, warehouses, oldTires, products] = await Promise.all([
     stockSummary(user),
     listStockAlerts(user),
-    listStock(user, { limit: 300 }),
+    listStock(user, { limit: 300, ...(statusFilter ? { status: statusFilter } : {}) }),
     listWarehouses(user),
     listOldTires(user),
     can(user, "catalog:ver") ? searchProducts(user, { limit: 200 }) : Promise.resolve([]),
@@ -120,6 +129,26 @@ export default async function InventoryPage() {
             />
           ) : null}
         </div>
+        <nav aria-label="Filtrar por estado" className="mb-3 flex flex-wrap gap-2">
+          {[null, ...STATUS_FILTERS].map((value) => {
+            const active = (value ?? undefined) === statusFilter;
+            return (
+              <Link
+                key={value ?? "todos"}
+                href={value ? `/app/inventory?estado=${value}` : "/app/inventory"}
+                aria-current={active ? "true" : undefined}
+                data-testid={`stock-filter-${value ?? "todos"}`}
+                className={`inline-flex min-h-10 items-center rounded-full border px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  active
+                    ? "border-primary bg-primary/15 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {value ? STOCK_STATUS_LABEL[value] : "Todos"}
+              </Link>
+            );
+          })}
+        </nav>
         {stock.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.noStock}</p>
         ) : (

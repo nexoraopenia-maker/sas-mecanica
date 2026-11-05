@@ -1,5 +1,6 @@
 import type { AppModule, TenantTx } from "@/lib/db";
 import { ModuleDisabledError, PlanLimitError } from "@/lib/errors";
+import { effectiveModuleList } from "@/lib/modules";
 
 export type LimitedResource = "users" | "branches" | "warehouses";
 
@@ -19,19 +20,25 @@ interface PlanFacts {
 
 export async function loadPlan(
   tx: TenantTx,
-): Promise<{ plan: PlanFacts; enabledModules: AppModule[] }> {
+): Promise<{ plan: PlanFacts; enabledModules: AppModule[]; disabledModules: AppModule[] }> {
   const tenant = await tx.tenant.findFirstOrThrow({ include: { plan: true, settings: true } });
-  return { plan: tenant.plan, enabledModules: tenant.settings?.enabledModules ?? [] };
+  return {
+    plan: tenant.plan,
+    enabledModules: tenant.settings?.enabledModules ?? [],
+    disabledModules: tenant.settings?.disabledModules ?? [],
+  };
 }
 
-/** Módulos efectivos = incluidos en el plan y, si el tenant los restringió, activados por él. */
+/**
+ * Módulos efectivos = los del plan, sin los que el SuperAdmin apagó para este cliente (y respetando la lista
+ * blanca heredada si existe). Al subir de plan se activan solos los nuevos; al bajar desaparecen.
+ */
 export function effectiveModules(
   plan: Pick<PlanFacts, "includedModules">,
   enabledModules: AppModule[],
+  disabledModules: AppModule[] = [],
 ): AppModule[] {
-  return enabledModules.length === 0
-    ? plan.includedModules
-    : plan.includedModules.filter((module) => enabledModules.includes(module));
+  return effectiveModuleList(plan.includedModules, disabledModules, enabledModules);
 }
 
 function limitFor(plan: PlanFacts, resource: LimitedResource): number | null {
@@ -43,8 +50,9 @@ function limitFor(plan: PlanFacts, resource: LimitedResource): number | null {
 
 async function currentUsage(tx: TenantTx, resource: LimitedResource): Promise<number> {
   if (resource === "users") return tx.user.count({ where: { status: { not: "DISABLED" } } });
-  if (resource === "branches") return tx.branch.count();
-  return tx.warehouse.count();
+  // Una sucursal o almacén desactivado libera su cupo en el plan.
+  if (resource === "branches") return tx.branch.count({ where: { isActive: true } });
+  return tx.warehouse.count({ where: { isActive: true } });
 }
 
 /** Límites del plan aplicados en BACKEND: lanza PlanLimitError si agregar `adding` los excede. */
@@ -61,7 +69,13 @@ export async function assertWithinPlan(
 }
 
 export async function assertModuleEnabled(tx: TenantTx, module: AppModule): Promise<void> {
-  const { plan, enabledModules } = await loadPlan(tx);
-  if (!effectiveModules(plan, enabledModules).includes(module))
+  const { plan, enabledModules, disabledModules } = await loadPlan(tx);
+  if (!effectiveModules(plan, enabledModules, disabledModules).includes(module))
     throw new ModuleDisabledError(module);
+}
+
+/** ¿El cliente tiene este módulo activo (en su plan y sin apagar por el SuperAdmin)? */
+export async function isModuleEnabled(tx: TenantTx, module: AppModule): Promise<boolean> {
+  const { plan, enabledModules, disabledModules } = await loadPlan(tx);
+  return effectiveModules(plan, enabledModules, disabledModules).includes(module);
 }

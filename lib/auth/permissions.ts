@@ -35,6 +35,10 @@ export const MODULE_ACTIONS: Record<AppModule, PermissionAction[]> = {
   REPORTS: [PermissionAction.ver],
   SETTINGS: [PermissionAction.ver, PermissionAction.editar],
   AUDIT: [PermissionAction.ver],
+  WHATSAPP: [PermissionAction.ver, PermissionAction.editar],
+  // Libros electrónicos PLE: ver/descargar, registrar compras (crear/editar) y anular (eliminar).
+  ACCOUNTING: CRUD,
+  BRANCHES: CRUD,
 };
 
 export const PERMISSION_CATALOG: ReadonlyArray<{
@@ -150,6 +154,21 @@ export const CUSTOM_ROLE_TEMPLATES: CustomRoleTemplate[] = [
       ...keys("INVENTORY", [ver]),
     ],
     maxDiscountPercent: 5,
+  },
+  {
+    id: "contador",
+    name: "Contador",
+    description:
+      "Descarga los libros PLE (ventas 14.1 y compras 8.1), registra comprobantes de compra y consulta reportes y facturación. No vende ni toca el inventario",
+    permissions: [
+      ...keys("ACCOUNTING", CRUD),
+      ...keys("REPORTS", [ver]),
+      ...keys("BILLING", [ver]),
+      ...keys("PURCHASING", [ver]),
+      ...keys("CUSTOMERS", [ver]),
+      ...keys("AUDIT", [ver]),
+    ],
+    maxDiscountPercent: 0,
   },
 ];
 

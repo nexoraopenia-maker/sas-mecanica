@@ -1,5 +1,6 @@
 import type { TenantTx } from "@/lib/db";
 import { normalizeWhatsapp } from "@/lib/workshop/documents";
+import { isModuleEnabled } from "./limits";
 import { enqueueOutbound } from "./messaging";
 
 export type NotifyResult =
@@ -16,6 +17,8 @@ export async function notifyCustomer(
   // Interruptor del dueño (Configuración → IA y canales): sin avisos no se encola nada.
   const settings = await tx.tenantSettings.findFirst({ select: { whatsappNoticesEnabled: true } });
   if (settings && !settings.whatsappNoticesEnabled) return "SKIPPED_DISABLED";
+  // Sin el módulo WhatsApp (plan o SuperAdmin) no sale ningún aviso.
+  if (!(await isModuleEnabled(tx, "WHATSAPP"))) return "SKIPPED_DISABLED";
   const customer = await tx.customer.findFirst({
     where: { id: params.customerId },
     select: { whatsapp: true, phone: true, whatsappOptIn: true },

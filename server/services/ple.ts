@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buildZip } from "@/lib/ple/zip";
 import { requirePermission, requireTenantId, type AuthUser } from "@/lib/auth/can";
 import { Prisma, withTenant } from "@/lib/db";
 import { DomainError } from "@/lib/errors";
@@ -27,12 +28,51 @@ export interface PleExport {
   rows: number;
 }
 
+export interface PleSampleRow {
+  date: string;
+  document: string;
+  party: string;
+  total: string;
+}
+
 export interface PlePreview {
   ruc: string | null;
   isDemoRuc: boolean;
   period: PleMonth;
-  sales: { rows: number; excludedPending: number; excludedRejected: number; total: string };
-  purchases: { rows: number; total: string };
+  sales: {
+    rows: number;
+    excludedPending: number;
+    excludedRejected: number;
+    total: string;
+    /** Filas que no cumplen la estructura oficial (el archivo no se genera mientras haya alguna). */
+    invalidRows: number;
+    firstError: string | null;
+    sample: PleSampleRow[];
+  };
+  purchases: {
+    rows: number;
+    total: string;
+    invalidRows: number;
+    firstError: string | null;
+    sample: PleSampleRow[];
+  };
+}
+
+const SAMPLE_SIZE = 8;
+
+function validation(
+  book: PleBook,
+  rows: string[][],
+): { invalidRows: number; firstError: string | null } {
+  let invalidRows = 0;
+  let firstError: string | null = null;
+  rows.forEach((row, index) => {
+    const errors = validateRow(book, row);
+    if (errors.length === 0) return;
+    invalidRows += 1;
+    firstError ??= `Fila ${index + 1}: ${errors[0]}`;
+  });
+  return { invalidRows, firstError };
 }
 
 const D = (value: string | number | Prisma.Decimal): Prisma.Decimal => new Prisma.Decimal(value);
@@ -48,7 +88,7 @@ function monthRange(period: PleMonth): { start: Date; endExclusive: Date } {
 }
 
 function guardView(actor: AuthUser): string {
-  requirePermission(actor, "reports:ver");
+  requirePermission(actor, "accounting:ver");
   return requireTenantId(actor);
 }
 
@@ -166,6 +206,11 @@ export async function previewPle(actor: AuthUser, input: unknown): Promise<PlePr
             ),
       D(0),
     );
+    const salesRows = buildSalesRows(sales.book, period.year, period.month);
+    const purchaseRows = buildPurchaseRows(purchases, period.year, period.month);
+    // Columnas del libro: ventas = fecha(4), tipo(6), serie(7), número(8), comprador(12), total(25);
+    // compras = fecha(4), tipo(6), serie(7), número(9), proveedor(13), total(24).
+    const pick = (row: string[], n: number) => row[n - 1] ?? "";
     return {
       ruc: tenant.taxId,
       isDemoRuc: tenant.taxId === DEMO_RUC,
@@ -175,10 +220,24 @@ export async function previewPle(actor: AuthUser, input: unknown): Promise<PlePr
         excludedPending: sales.excludedPending,
         excludedRejected: sales.excludedRejected,
         total: salesTotal.toFixed(2),
+        ...validation("14.1", salesRows),
+        sample: salesRows.slice(0, SAMPLE_SIZE).map((row) => ({
+          date: pick(row, 4),
+          document: `${pick(row, 6)} ${pick(row, 7)}-${pick(row, 8)}`,
+          party: pick(row, 12) || "—",
+          total: pick(row, 25),
+        })),
       },
       purchases: {
         rows: purchases.length,
         total: purchases.reduce((acc, p) => acc.plus(p.total), D(0)).toFixed(2),
+        ...validation("8.1", purchaseRows),
+        sample: purchaseRows.slice(0, SAMPLE_SIZE).map((row) => ({
+          date: pick(row, 4),
+          document: `${pick(row, 6)} ${pick(row, 7)}-${pick(row, 9)}`,
+          party: pick(row, 13) || "—",
+          total: pick(row, 24),
+        })),
       },
     };
   });
@@ -188,6 +247,7 @@ export async function previewPle(actor: AuthUser, input: unknown): Promise<PlePr
 export async function exportPle(
   actor: AuthUser,
   input: { book: unknown; year: unknown; month: unknown },
+  meta: RequestMeta = {},
 ): Promise<PleExport> {
   const tenantId = guardView(actor);
   const book = pleBookSchema.parse(input.book);
@@ -212,7 +272,7 @@ export async function exportPle(
         `El archivo no cumple la estructura SUNAT: ${errors[0]}`,
         { errors },
       );
-    return {
+    const file: PleExport = {
       book,
       fileName: pleFileName({
         ruc: tenant.taxId,
@@ -224,11 +284,24 @@ export async function exportPle(
       content: encodeAnsi(pleFile(rows)),
       rows: rows.length,
     };
+    // Constancia de cada descarga: quién bajó qué libro de qué mes (sin guardar el contenido).
+    await recordAudit(tx, auditContextOf(actor, meta), {
+      action: "ple.exported",
+      entityType: "ple_book",
+      after: {
+        book,
+        year: period.year,
+        month: period.month,
+        rows: rows.length,
+        fileName: file.fileName,
+      },
+    });
+    return file;
   });
 }
 
 export async function listPurchaseInvoices(actor: AuthUser, input: unknown) {
-  requirePermission(actor, "purchasing:ver");
+  requirePermission(actor, "accounting:ver");
   const tenantId = requireTenantId(actor);
   const period = pleMonthSchema.parse(input);
   return withTenant(tenantId, (tx) =>
@@ -245,7 +318,7 @@ export async function registerPurchaseInvoice(
   input: PurchaseInvoiceInput,
   meta: RequestMeta = {},
 ) {
-  requirePermission(actor, "purchasing:crear");
+  requirePermission(actor, "accounting:crear");
   const tenantId = requireTenantId(actor);
   return withTenant(tenantId, async (tx) => {
     const settings = await tx.tenantSettings.findFirstOrThrow({ select: { taxRate: true } });
@@ -328,7 +401,7 @@ export async function registerPurchaseInvoice(
 
 /** Anula (borrado lógico) un comprobante de compra; el motivo queda en la bitácora inmutable. */
 export async function voidPurchaseInvoice(actor: AuthUser, input: unknown, meta: RequestMeta = {}) {
-  requirePermission(actor, "purchasing:eliminar");
+  requirePermission(actor, "accounting:eliminar");
   const tenantId = requireTenantId(actor);
   const { id, reason } = voidPurchaseInvoiceSchema.parse(input);
   return withTenant(tenantId, async (tx) => {
@@ -348,4 +421,30 @@ export async function voidPurchaseInvoice(actor: AuthUser, input: unknown, meta:
       reason,
     });
   });
+}
+
+export interface PleZip {
+  fileName: string;
+  content: Buffer;
+  rows: { sales: number; purchases: number };
+}
+
+/** Los dos libros del mes (14.1 y 8.1) en un solo ZIP, listos para entregar al contador. */
+export async function exportPleZip(
+  actor: AuthUser,
+  input: { year: unknown; month: unknown },
+  meta: RequestMeta = {},
+): Promise<PleZip> {
+  const sales = await exportPle(actor, { book: "14.1", ...input }, meta);
+  const purchases = await exportPle(actor, { book: "8.1", ...input }, meta);
+  const period = pleMonthSchema.parse(input);
+  const ruc = sales.fileName.slice(2, 13);
+  return {
+    fileName: `PLE-${ruc}-${period.year}${String(period.month).padStart(2, "0")}.zip`,
+    content: buildZip([
+      { name: sales.fileName, data: sales.content },
+      { name: purchases.fileName, data: purchases.content },
+    ]),
+    rows: { sales: sales.rows, purchases: purchases.rows },
+  };
 }
